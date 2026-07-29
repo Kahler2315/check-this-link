@@ -1,0 +1,238 @@
+[
+  {
+    "name": "Reddit canonical domain",
+    "href": "https://www.reddit.com/r/firefox/",
+    "text": "reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit legacy subdomain",
+    "href": "https://old.reddit.com/r/firefox/",
+    "text": "www.reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit language subdomain",
+    "href": "https://fr.reddit.com/r/firefox/",
+    "text": "reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit short link labelled with canonical domain",
+    "href": "https://redd.it/abc123",
+    "text": "reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit canonical link labelled with short domain",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "redd.it",
+    "expected": []
+  },
+  {
+    "name": "Reddit image host labelled with canonical domain",
+    "href": "https://i.redd.it/example.png",
+    "text": "reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit video host labelled with canonical domain",
+    "href": "https://v.redd.it/abc123",
+    "text": "reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit deep link labelled with canonical domain",
+    "href": "https://reddit.app.link/abc123",
+    "text": "reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit deep-link subdomain",
+    "href": "https://click.reddit.app.link/abc123",
+    "text": "Open reddit.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit short URL with path",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "https://redd.it/abc123",
+    "expected": []
+  },
+  {
+    "name": "Reddit card headline mentioning a source domain",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "A useful article from example.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit multiline card metadata",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "An interesting article\nexample.com",
+    "expected": []
+  },
+  {
+    "name": "Reddit source and comment-count metadata",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "example.com • 42 comments",
+    "expected": []
+  },
+  {
+    "name": "Rich title attribute mentioning a domain",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "Open discussion",
+    "title": "Reddit post about example.com",
+    "expected": []
+  },
+  {
+    "name": "Rich accessibility label mentioning a domain",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "Open discussion",
+    "aria_label": "Open Reddit discussion about example.com",
+    "expected": []
+  },
+  {
+    "name": "Rich image description mentioning a domain",
+    "href": "https://www.reddit.com/r/firefox/comments/abc123/example/",
+    "text": "Open discussion",
+    "image_alts": [
+      "Screenshot from example.com"
+    ],
+    "expected": []
+  },
+  {
+    "name": "Generic article headline mentioning a domain",
+    "href": "https://news.example/articles/1",
+    "text": "What changed in Node.js this week",
+    "expected": []
+  },
+  {
+    "name": "Generic card metadata mentioning a different domain",
+    "href": "https://social.example/posts/1",
+    "text": "Release notes from project.example",
+    "expected": []
+  },
+  {
+    "name": "Unrelated target claiming Reddit",
+    "href": "https://destination.test/login",
+    "text": "reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Unrelated target with navigation cue claiming Reddit",
+    "href": "https://destination.test/login",
+    "text": "Open reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Unrelated target with full Reddit URL",
+    "href": "https://destination.test/login",
+    "text": "https://reddit.com/r/help",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Reddit token on an unrelated domain",
+    "href": "https://reddit-login.test/",
+    "text": "reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Reddit short domain used as an attacker subdomain",
+    "href": "https://redd.it.destination.test/",
+    "text": "reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Reddit deep-link domain used as an attacker subdomain",
+    "href": "https://reddit.app.link.destination.test/",
+    "text": "reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Unrelated app-link tenant",
+    "href": "https://attacker.app.link/abc123",
+    "text": "reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Separate app-link tenants",
+    "href": "https://attacker.app.link/abc123",
+    "text": "victim.app.link",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Reddit destination with unrelated visible domain",
+    "href": "https://reddit.app.link/abc123",
+    "text": "paypal.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Multiple domains retain mismatch detection",
+    "href": "https://second.test/",
+    "text": "first.test then second.test",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Pure accessibility-domain claim",
+    "href": "https://destination.test/",
+    "text": "Open destination",
+    "aria_label": "reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Pure title-domain claim",
+    "href": "https://destination.test/",
+    "text": "Open destination",
+    "title": "reddit.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Pure image-alt domain claim",
+    "href": "https://destination.test/",
+    "text": "Open destination",
+    "image_alts": [
+      "reddit.com"
+    ],
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Punctuation around a Reddit claim",
+    "href": "https://destination.test/",
+    "text": "(reddit.com).",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Reddit target with matching cued label",
+    "href": "https://reddit.app.link/abc123",
+    "text": "Read on reddit.com",
+    "expected": []
+  }
+]
