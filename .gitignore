@@ -1,0 +1,6 @@
+node_modules/
+artifacts/
+web-ext-artifacts/
+*.log
+__pycache__/
+

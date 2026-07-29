@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Check This Link</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="linkguard-popup">
+    <main>
+      <header>
+        <h1>Check This Link</h1>
+        <p>Local link scan</p>
+      </header>
+
+      <section class="linkguard-summary" aria-live="polite">
+        <div>
+          <span class="linkguard-label">Links</span>
+          <strong id="total-links">-</strong>
+        </div>
+        <div>
+          <span class="linkguard-label">Suspicious</span>
+          <strong id="suspicious-links">-</strong>
+        </div>
+      </section>
+
+      <section>
+        <h2>Reasons</h2>
+        <ul id="reason-list">
+          <li>Scanning this page...</li>
+        </ul>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
