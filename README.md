@@ -5,7 +5,7 @@
 Check This Link is a privacy-first Firefox extension that scans links on the
 current webpage and visually flags patterns that deserve a closer look.
 
-Version 0.1.3 checks locally for:
+Version 0.1.4 checks locally for:
 
 - Known URL-shortener domains
 - Direct IP-address links
@@ -70,9 +70,9 @@ The test page deliberately tries to rotate the injected warning label; version
 0.1.1 and later should keep it horizontal and upright.
 
 The broader `http://localhost:8000/link-classification.html` fixture checks
-Reddit short/deep links, rich-card labels, misleading destination claims,
-accessibility labels, shared-hosting boundaries, dynamic insertion, and badge
-state.
+Reddit short/deep links, Microsoft Teams government-cloud and Safe Links URLs,
+rich-card labels, misleading destination claims, accessibility labels,
+shared-hosting boundaries, dynamic insertion, and badge state.
 
 If `check_this_link_codex_bundle.zip` is available, it contains a larger
 interactive regression fixture. Extract it to a temporary directory, serve that
