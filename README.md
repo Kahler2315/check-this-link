@@ -1,5 +1,7 @@
 # Check This Link
 
+[![Validate extension](https://github.com/Kahler2315/check-this-link/actions/workflows/validate.yml/badge.svg)](https://github.com/Kahler2315/check-this-link/actions/workflows/validate.yml)
+
 Check This Link is a privacy-first Firefox extension that scans links on the
 current webpage and visually flags patterns that deserve a closer look.
 

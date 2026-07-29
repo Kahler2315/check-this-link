@@ -1,0 +1,9 @@
+{
+  "version": {
+    "release_notes": {
+      "en-US": "Keeps warning labels upright and readable when webpages apply conflicting CSS. Adds Firefox ESR 140 desktop compatibility while retaining Firefox 142 as the Android minimum."
+    },
+    "approval_notes": "Version 0.1.1 fixes a display bug caused by webpage CSS affecting the injected warning label. The label is now isolated in a closed Shadow DOM with explicit orientation resets. The extension continues to analyze links entirely on-device and contains no remote requests, telemetry, accounts, or external services. Tests, Mozilla lint, and a headless Firefox ESR 140 launch passed before submission."
+  }
+}
+

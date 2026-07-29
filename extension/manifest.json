@@ -3,6 +3,7 @@
   "name": "Check This Link",
   "version": "0.1.1",
   "description": "Locally flags suspicious links on webpages.",
+  "homepage_url": "https://github.com/Kahler2315/check-this-link",
   "permissions": [],
   "host_permissions": [
     "<all_urls>"
