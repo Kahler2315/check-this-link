@@ -97,3 +97,7 @@ RECOVERY.md        Recovery provenance and file hashes
   public suffixes.
 - Link scanning requires access to webpages through the declared
   `<all_urls>` host permission.
+
+## License
+
+[MIT](LICENSE)

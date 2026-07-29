@@ -59,8 +59,8 @@ transformed before release. The following were not present:
 - Original README, development notes, or build configuration
 - Automated tests
 - Any pre-build source different from the packaged JavaScript and CSS
-- A source license
+- A license file
 
-The current repository scaffolding was created after recovery. No license has
-been assigned; the owner should choose one before accepting outside
-contributions.
+The current repository scaffolding was created after recovery. The public AMO
+listing declared the extension under the MIT License, so the reconstructed
+repository includes that license at its root.
