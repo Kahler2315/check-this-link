@@ -5,7 +5,7 @@
 Check This Link is a privacy-first Firefox extension that scans links on the
 current webpage and visually flags patterns that deserve a closer look.
 
-Version 0.1.1 checks locally for:
+Version 0.1.2 checks locally for:
 
 - Known URL-shortener domains
 - Direct IP-address links
@@ -67,7 +67,12 @@ python3 -m http.server 8000 --directory tests/fixtures
 Then open
 `http://127.0.0.1:8000/css-collision.html` with the temporary extension loaded.
 The test page deliberately tries to rotate the injected warning label; version
-0.1.1 should keep it horizontal and upright.
+0.1.1 and later should keep it horizontal and upright.
+
+If `check_this_link_codex_bundle.zip` is available, it contains a larger
+interactive regression fixture. Extract it to a temporary directory, serve that
+directory, and open the exact `localhost` URL described in its
+`CODEX_INSTRUCTIONS.md`.
 
 Do not upload an unsigned build as an update without first confirming the
 add-on ID in `extension/manifest.json` and following Mozilla's normal signing
@@ -92,9 +97,13 @@ RECOVERY.md        Recovery provenance and file hashes
 - The scanner uses deterministic heuristics and can produce false positives or
   miss malicious links.
 - A URL shortener can be legitimate.
-- Brand-name matching is intentionally simple in version 0.1.0.
-- The basic registrable-domain helper covers only a small set of multi-part
-  public suffixes.
+- Brand lookalike detection uses a limited local confusable-character map, not a
+  complete Unicode security profile.
+- Registrable-domain comparison handles common country-code patterns and a
+  curated set of shared-hosting boundaries; it does not bundle the full Public
+  Suffix List.
+- Open Shadow DOM roots are scanned, but browser isolation prevents access to
+  closed Shadow DOM owned by webpages.
 - Link scanning requires access to webpages through the declared
   `<all_urls>` host permission.
 
