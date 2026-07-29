@@ -16,7 +16,7 @@ class RecoveredExtensionTests(unittest.TestCase):
 
     def test_manifest_identity_is_preserved(self):
         self.assertEqual(self.manifest["name"], "Check This Link")
-        self.assertEqual(self.manifest["version"], "0.1.0")
+        self.assertEqual(self.manifest["version"], "0.1.1")
         self.assertEqual(
             self.manifest["browser_specific_settings"]["gecko"]["id"],
             "check-this-link@example.com",
@@ -42,6 +42,13 @@ class RecoveredExtensionTests(unittest.TestCase):
             gecko["data_collection_permissions"]["required"],
             ["none"],
         )
+        self.assertEqual(gecko["strict_min_version"], "140.0")
+        self.assertEqual(
+            self.manifest["browser_specific_settings"]["gecko_android"][
+                "strict_min_version"
+            ],
+            "142.0",
+        )
 
     def test_runtime_has_no_remote_request_primitives(self):
         runtime_source = "\n".join(
@@ -61,7 +68,15 @@ class RecoveredExtensionTests(unittest.TestCase):
     def test_no_mozilla_signature_metadata_is_treated_as_source(self):
         self.assertFalse((EXTENSION / "META-INF").exists())
 
+    def test_injected_badge_is_isolated_from_page_css(self):
+        content_source = (EXTENSION / "content.js").read_text(encoding="utf-8")
+
+        self.assertIn('attachShadow({ mode: "closed" })', content_source)
+        self.assertIn('"writing-mode": "horizontal-tb"', content_source)
+        self.assertIn('"text-orientation": "mixed"', content_source)
+        self.assertIn('transform: "none"', content_source)
+        self.assertNotIn('badge.className = "linkguard-badge"', content_source)
+
 
 if __name__ == "__main__":
     unittest.main()
-

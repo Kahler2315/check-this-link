@@ -12,6 +12,9 @@
 
 The original XPI remains unchanged in the Downloads folder.
 
+The exact recovered runtime is preserved in Git commit `3cbfcfc`. Files on the
+current development branch may differ as fixes and new versions are added.
+
 ## Recovery method
 
 An XPI is a ZIP archive containing the files Firefox executes. The archive was
@@ -61,4 +64,3 @@ transformed before release. The following were not present:
 The current repository scaffolding was created after recovery. No license has
 been assigned; the owner should choose one before accepting outside
 contributions.
-

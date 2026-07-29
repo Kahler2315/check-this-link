@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Check This Link CSS collision test</title>
+    <style>
+      body {
+        max-width: 720px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+        font: 18px/1.5 sans-serif;
+      }
+
+      /*
+       * This intentionally hostile rule reproduces the old bug. Version 0.1.0
+       * injected its label as a normal span, so this page rotated and changed
+       * the writing direction of that label.
+       */
+      a > span,
+      a > check-this-link-badge {
+        direction: rtl !important;
+        writing-mode: vertical-rl !important;
+        text-orientation: sideways !important;
+        transform: rotate(180deg) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>CSS collision test</h1>
+    <p>
+      The warning label beside this intentionally suspicious link should remain
+      horizontal and upright:
+      <a href="https://paypal.com.security-test.invalid">paypal.com</a>
+    </p>
+  </body>
+</html>
+

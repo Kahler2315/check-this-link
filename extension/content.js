@@ -2,6 +2,62 @@
   "use strict";
 
   const extensionApi = typeof browser !== "undefined" ? browser : chrome;
+  const BADGE_TAG = "check-this-link-badge";
+  const BADGE_ATTRIBUTE = "data-check-this-link-badge";
+  const BADGE_HOST_STYLES = {
+    all: "initial",
+    display: "inline-block",
+    "box-sizing": "border-box",
+    "margin-inline-start": "0.35em",
+    position: "static",
+    transform: "none",
+    rotate: "none",
+    scale: "none",
+    direction: "ltr",
+    "writing-mode": "horizontal-tb",
+    "text-orientation": "mixed",
+    "unicode-bidi": "isolate",
+    "vertical-align": "baseline",
+    "pointer-events": "none"
+  };
+  const BADGE_SHADOW_STYLES = `
+    :host {
+      all: initial !important;
+      display: inline-block !important;
+      box-sizing: border-box !important;
+      margin-inline-start: 0.35em !important;
+      position: static !important;
+      transform: none !important;
+      rotate: none !important;
+      scale: none !important;
+      direction: ltr !important;
+      writing-mode: horizontal-tb !important;
+      text-orientation: mixed !important;
+      unicode-bidi: isolate !important;
+      vertical-align: baseline !important;
+      pointer-events: none !important;
+    }
+
+    span {
+      all: initial;
+      display: inline-block;
+      box-sizing: border-box;
+      padding: 0.1em 0.35em;
+      border: 1px solid #d92d20;
+      border-radius: 4px;
+      color: #8a1f14;
+      background: #fff4f2;
+      font: 600 11px/1.3 Arial, sans-serif;
+      direction: ltr;
+      writing-mode: horizontal-tb;
+      text-orientation: mixed;
+      unicode-bidi: isolate;
+      transform: none;
+      rotate: none;
+      scale: none;
+      white-space: nowrap;
+    }
+  `;
 
   const SHORTENER_HOSTS = new Set([
     "bit.ly",
@@ -152,10 +208,32 @@
       anchor.removeAttribute("data-linkguard-original-title");
     }
 
-    const badge = anchor.querySelector(":scope > .linkguard-badge");
+    const badge = anchor.querySelector(
+      `:scope > ${BADGE_TAG}[${BADGE_ATTRIBUTE}]`
+    );
     if (badge) {
       badge.remove();
     }
+  }
+
+  function createBadge() {
+    const badgeHost = document.createElement(BADGE_TAG);
+    badgeHost.setAttribute(BADGE_ATTRIBUTE, "");
+    badgeHost.setAttribute("aria-hidden", "true");
+
+    Object.entries(BADGE_HOST_STYLES).forEach(([property, value]) => {
+      badgeHost.style.setProperty(property, value, "important");
+    });
+
+    const shadowRoot = badgeHost.attachShadow({ mode: "closed" });
+    const style = document.createElement("style");
+    const label = document.createElement("span");
+
+    style.textContent = BADGE_SHADOW_STYLES;
+    label.textContent = "Check This Link";
+    shadowRoot.append(style, label);
+
+    return badgeHost;
   }
 
   function markSuspicious(anchor, reasons) {
@@ -166,11 +244,8 @@
       ? anchor.title + " | Check This Link: " + reasons.join(", ")
       : "Check This Link: " + reasons.join(", ");
 
-    if (!anchor.querySelector(":scope > .linkguard-badge")) {
-      const badge = document.createElement("span");
-      badge.className = "linkguard-badge";
-      badge.textContent = "Check This Link";
-      anchor.appendChild(badge);
+    if (!anchor.querySelector(`:scope > ${BADGE_TAG}[${BADGE_ATTRIBUTE}]`)) {
+      anchor.appendChild(createBadge());
     }
   }
 

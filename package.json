@@ -1,6 +1,6 @@
 {
   "name": "check-this-link",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A local-first Firefox extension that flags suspicious link patterns.",
   "scripts": {
@@ -16,4 +16,3 @@
     "node": ">=22"
   }
 }
-

@@ -3,7 +3,7 @@
 Check This Link is a privacy-first Firefox extension that scans links on the
 current webpage and visually flags patterns that deserve a closer look.
 
-Version 0.1.0 checks locally for:
+Version 0.1.1 checks locally for:
 
 - Known URL-shortener domains
 - Direct IP-address links
@@ -16,13 +16,14 @@ does not send browsing data to a server or make remote requests.
 ## Source recovery
 
 This repository was reconstructed from the publicly distributed, Mozilla-signed
-`check_this_link-0.1.0.xpi` package. The files under `extension/` are the exact
-runtime files recovered from that release; they have not been reformatted or
-changed.
+`check_this_link-0.1.0.xpi` package. The initial recovery commit (`3cbfcfc`)
+preserves the exact runtime files from that release. Later commits contain
+clearly documented development changes.
 
 Mozilla's generated signature files under `META-INF/` are intentionally not
 included as editable source. See [RECOVERY.md](RECOVERY.md) for provenance,
-checksums, and the limits of what can be recovered from a published package.
+version 0.1.0 checksums, and the limits of what can be recovered from a
+published package.
 
 ## Test temporarily in Firefox
 
@@ -55,6 +56,17 @@ Create an unsigned development package with:
 npm run build
 ```
 
+To manually exercise the webpage-CSS isolation regression test:
+
+```sh
+python3 -m http.server 8000 --directory tests/fixtures
+```
+
+Then open
+`http://127.0.0.1:8000/css-collision.html` with the temporary extension loaded.
+The test page deliberately tries to rotate the injected warning label; version
+0.1.1 should keep it horizontal and upright.
+
 Do not upload an unsigned build as an update without first confirming the
 add-on ID in `extension/manifest.json` and following Mozilla's normal signing
 process.
@@ -83,4 +95,3 @@ RECOVERY.md        Recovery provenance and file hashes
   public suffixes.
 - Link scanning requires access to webpages through the declared
   `<all_urls>` host permission.
-
