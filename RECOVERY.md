@@ -4,13 +4,13 @@
 
 - Recovered on: 2026-07-28
 - Original package:
-  `/home/inferno_daemon/Downloads/check_this_link-0.1.0.xpi`
+  `check_this_link-0.1.0.xpi` (retained outside the repository)
 - Package SHA-256:
   `cc2f33e59ec96da1a05dd010f9f193ac2905931182d2994c9a95989cab5344bd`
 - Published extension version: `0.1.0`
 - Firefox add-on ID: `check-this-link@example.com`
 
-The original XPI remains unchanged in the Downloads folder.
+The original XPI remains unchanged in private local storage.
 
 The exact recovered runtime is preserved in Git commit `3cbfcfc`. Files on the
 current development branch may differ as fixes and new versions are added.

@@ -55,18 +55,27 @@
   function sendSummaryRequest(tabId) {
     if (!hasBrowserApi) {
       return new Promise((resolve, reject) => {
-        chrome.tabs.sendMessage(tabId, { type: "LINKGUARD_GET_SUMMARY" }, (summary) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-            return;
-          }
+        chrome.tabs.sendMessage(
+          tabId,
+          { type: "LINKGUARD_GET_SUMMARY" },
+          { frameId: 0 },
+          (summary) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError);
+              return;
+            }
 
-          resolve(summary);
-        });
+            resolve(summary);
+          }
+        );
       });
     }
 
-    return extensionApi.tabs.sendMessage(tabId, { type: "LINKGUARD_GET_SUMMARY" });
+    return extensionApi.tabs.sendMessage(
+      tabId,
+      { type: "LINKGUARD_GET_SUMMARY" },
+      { frameId: 0 }
+    );
   }
 
   queryActiveTab()
