@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.3 - 2026-07-29
+
+- Treat Reddit's canonical, short-link, media, and deep-link hosts as related
+  destinations, avoiding mismatch warnings between `reddit.com`, `redd.it`,
+  and the `reddit.app.link` tenant.
+- Require a single visible domain to appear as a URL-like destination claim or
+  follow a short navigation cue before reporting a mismatch. This avoids
+  treating source domains inside headlines, discussions, or rich-card metadata
+  as deceptive destinations.
+- Preserve mismatch warnings for unrelated `app.link` tenants, domains that
+  merely contain a Reddit hostname as a subdomain, pure visible-domain claims,
+  and labels containing multiple conflicting domains.
+- Add 85 Reddit and adversarial classification permutations plus a 33-case
+  interactive Firefox regression fixture.
+
 ## 0.1.2 - 2026-07-29
 
 - Treat websites under Google's official `.google` namespace, such as

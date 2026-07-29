@@ -17,7 +17,7 @@ class RecoveredExtensionTests(unittest.TestCase):
 
     def test_manifest_identity_is_preserved(self):
         self.assertEqual(self.manifest["name"], "Check This Link")
-        self.assertEqual(self.manifest["version"], "0.1.2")
+        self.assertEqual(self.manifest["version"], "0.1.3")
         self.assertEqual(
             self.manifest["browser_specific_settings"]["gecko"]["id"],
             "check-this-link@example.com",
@@ -417,6 +417,73 @@ process.stdout.write(JSON.stringify({
             ),
             ["visible domain mismatch"],
         )
+
+    def test_expanded_link_classification_regressions(self):
+        cases = json.loads(
+            (ROOT / "tests" / "fixtures" / "link-classification-cases.json")
+            .read_text(encoding="utf-8")
+        )
+
+        self.assertGreaterEqual(len(cases), 30)
+        for case in cases:
+            with self.subTest(case=case["name"]):
+                self.assertEqual(
+                    self.scan_link(
+                        case["href"],
+                        case["text"],
+                        inner_text=case.get("inner_text"),
+                        aria_label=case.get("aria_label"),
+                        title=case.get("title"),
+                        image_alts=case.get("image_alts", ()),
+                    ),
+                    case["expected"],
+                )
+
+    def test_reddit_site_identity_matrix(self):
+        destination_hosts = (
+            "reddit.com",
+            "www.reddit.com",
+            "old.reddit.com",
+            "redd.it",
+            "i.redd.it",
+            "v.redd.it",
+            "reddit.app.link",
+            "click.reddit.app.link",
+        )
+        visible_hosts = (
+            "reddit.com",
+            "old.reddit.com",
+            "redd.it",
+            "i.redd.it",
+            "reddit.app.link",
+            "click.reddit.app.link",
+        )
+
+        for destination_host in destination_hosts:
+            for visible_host in visible_hosts:
+                with self.subTest(
+                    destination=destination_host,
+                    visible=visible_host,
+                ):
+                    self.assertEqual(
+                        self.scan_link(
+                            f"https://{destination_host}/abc123",
+                            visible_host,
+                        ),
+                        [],
+                    )
+
+        for attacker_host in (
+            "attacker.app.link",
+            "redd.it.destination.test",
+            "reddit.app.link.destination.test",
+            "reddit-login.test",
+        ):
+            with self.subTest(attacker=attacker_host):
+                self.assertEqual(
+                    self.scan_link(f"https://{attacker_host}/", "reddit.com"),
+                    ["visible domain mismatch"],
+                )
 
     def test_dynamic_links_and_subframes_are_covered(self):
         content_script = self.manifest["content_scripts"][0]

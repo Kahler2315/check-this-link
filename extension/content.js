@@ -88,6 +88,7 @@
   // the tenant label as part of the site boundary when comparing visible and
   // destination domains.
   const SHARED_HOSTING_SUFFIXES = new Set([
+    "app.link",
     "appspot.com",
     "cloudfront.net",
     "firebaseapp.com",
@@ -98,6 +99,13 @@
     "vercel.app",
     "web.app"
   ]);
+
+  // Some services use a separate, first-party domain for short or deep links.
+  // These groups are intentionally small: only domains that can safely be
+  // treated as the same destination identity belong here.
+  const RELATED_SITE_GROUPS = [
+    new Set(["reddit.com", "redd.it", "reddit.app.link"])
+  ];
 
   // Dotted product names and filenames are common link text but are not useful
   // evidence that a link claims a different destination.
@@ -279,18 +287,62 @@
     return singleLetterLabels.length < 2;
   }
 
-  function extractVisibleDomain(text) {
+  function findVisibleDomains(text) {
     const domainPattern =
       /(?:https?:\/\/)?(?:www\.)?((?:[a-z0-9\u0080-\uffff](?:[a-z0-9\u0080-\uffff-]{0,61}[a-z0-9\u0080-\uffff])?\.)+[a-z0-9\u0080-\uffff](?:[a-z0-9\u0080-\uffff-]{0,61}[a-z0-9\u0080-\uffff])?)(?::\d{1,5})?(?=[/?#\s,.;!?)\]}:'"»]|$)/gi;
+    const candidateText = text.trim();
+    const matches = [];
 
-    for (const match of text.trim().matchAll(domainPattern)) {
+    for (const match of candidateText.matchAll(domainPattern)) {
       const host = normalizeHost(match[1]);
       if (isPlausibleVisibleHost(host)) {
-        return host;
+        matches.push({
+          host,
+          index: match.index,
+          raw: match[0]
+        });
       }
     }
 
-    return null;
+    return { candidateText, matches };
+  }
+
+  function isSimpleDestinationClaim(candidateText, match) {
+    const prefix = candidateText.slice(0, match.index);
+    const suffix = candidateText.slice(match.index + match.raw.length);
+    const wrapperOnlyPrefix = /^[\s([{"'“‘]*$/u.test(prefix);
+    const destinationCuePrefix =
+      /^[\s([{"'“‘]*(?:open|visit|go(?:\s+to)?|browse(?:\s+to)?|continue(?:\s+to)?|read(?:\s+(?:at|on))?|sign\s+in(?:\s+(?:to|at))?|log\s+in(?:\s+(?:to|at))?|website|link)\s*[:\-–—]?\s*$/iu.test(
+        prefix
+      );
+    const wrapperOnlySuffix = /^[\s)\]}"'”’».,;!?]*$/u.test(suffix);
+    const urlSuffix =
+      /^[/?#][^\s]*[\s)\]}"'”’».,;!?]*$/u.test(suffix);
+
+    return (
+      (wrapperOnlyPrefix || destinationCuePrefix) &&
+      (wrapperOnlySuffix || urlSuffix)
+    );
+  }
+
+  function extractClaimedVisibleDomain(text) {
+    const { candidateText, matches } = findVisibleDomains(text);
+    if (matches.length === 0) {
+      return null;
+    }
+
+    // Multiple domains in one label can explicitly claim one destination and
+    // then point somewhere else. Keep checking the first one in that case.
+    if (matches.length > 1) {
+      return matches[0].host;
+    }
+
+    // A domain mentioned inside a headline or rich-card description is not
+    // necessarily the destination claimed by the link. Only compare a single
+    // domain when the label itself is URL-like or uses a short navigation cue.
+    return isSimpleDestinationClaim(candidateText, matches[0])
+      ? matches[0].host
+      : null;
   }
 
   function getPresentedLinkTexts(anchor) {
@@ -327,10 +379,17 @@
     const targetBaseDomain = getSimpleBaseDomain(targetHost);
 
     return getPresentedLinkTexts(anchor).some((text) => {
-      const visibleDomain = extractVisibleDomain(text);
+      const visibleDomain = extractClaimedVisibleDomain(text);
+      const visibleBaseDomain = visibleDomain
+        ? getSimpleBaseDomain(visibleDomain)
+        : null;
       return (
-        visibleDomain &&
-        getSimpleBaseDomain(visibleDomain) !== targetBaseDomain
+        visibleBaseDomain &&
+        visibleBaseDomain !== targetBaseDomain &&
+        !RELATED_SITE_GROUPS.some(
+          (group) =>
+            group.has(visibleBaseDomain) && group.has(targetBaseDomain)
+        )
       );
     });
   }

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Check This Link classification regression test</title>
+    <style>
+      body {
+        max-width: 960px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+
+      #cases {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .case {
+        padding: 0.75rem;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+      }
+
+      .case[data-status="pass"] {
+        border-color: #16803c;
+      }
+
+      .case[data-status="fail"] {
+        border-color: #c5221f;
+        background: #fff4f2;
+      }
+
+      .case a {
+        white-space: pre-line;
+      }
+
+      code {
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Link classification regression test</h1>
+    <p>
+      This fixture builds its links asynchronously so it also exercises the
+      extension's mutation observer. Load the temporary extension, wait for the
+      cases to appear, and select <strong>Audit extension markers</strong>.
+    </p>
+    <button id="audit" type="button">Audit extension markers</button>
+    <output id="summary">Loading cases…</output>
+    <main id="cases"></main>
+
+    <script>
+      "use strict";
+
+      const casesContainer = document.getElementById("cases");
+      const summary = document.getElementById("summary");
+
+      function makeCase(testCase, index) {
+        const article = document.createElement("article");
+        const heading = document.createElement("strong");
+        const anchor = document.createElement("a");
+        const details = document.createElement("div");
+
+        article.className = "case";
+        article.dataset.caseIndex = String(index);
+        article.dataset.expected = testCase.expected.join("|");
+        heading.textContent = testCase.name;
+        anchor.href = testCase.href;
+        anchor.textContent = testCase.text;
+
+        if (testCase.title) {
+          anchor.title = testCase.title;
+        }
+        if (testCase.aria_label) {
+          anchor.setAttribute("aria-label", testCase.aria_label);
+        }
+        for (const alt of testCase.image_alts || []) {
+          const image = document.createElement("img");
+          image.alt = alt;
+          anchor.append(" ", image);
+        }
+
+        details.append(
+          " — ",
+          Object.assign(document.createElement("code"), {
+            textContent: testCase.href
+          })
+        );
+        article.append(heading, document.createElement("br"), anchor, details);
+        return article;
+      }
+
+      window.fixtureReady = fetch("link-classification-cases.json")
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Fixture request failed: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((cases) => {
+          cases.forEach((testCase, index) => {
+            casesContainer.appendChild(makeCase(testCase, index));
+          });
+          summary.textContent = `${cases.length} cases loaded`;
+          return cases.length;
+        });
+
+      window.auditLinkClassification = function () {
+        const failures = [];
+        const cards = [...document.querySelectorAll(".case")];
+
+        cards.forEach((card) => {
+          const anchor = card.querySelector("a[href]");
+          const expected = card.dataset.expected
+            ? card.dataset.expected.split("|").sort()
+            : [];
+          const actual = (anchor.dataset.linkguardReasons || "")
+            .split(",")
+            .map((reason) => reason.trim())
+            .filter(Boolean)
+            .sort();
+          const marked = anchor.classList.contains("linkguard-suspicious-link");
+          const badgeCount = anchor.querySelectorAll(
+            ":scope > check-this-link-badge[data-check-this-link-badge]"
+          ).length;
+          const passed =
+            JSON.stringify(actual) === JSON.stringify(expected) &&
+            marked === (expected.length > 0) &&
+            badgeCount === (expected.length > 0 ? 1 : 0);
+
+          card.dataset.status = passed ? "pass" : "fail";
+          if (!passed) {
+            failures.push({
+              name: card.querySelector("strong").textContent,
+              expected,
+              actual,
+              marked,
+              badgeCount
+            });
+          }
+        });
+
+        summary.textContent =
+          `${cards.length - failures.length}/${cards.length} cases passed`;
+        return {
+          total: cards.length,
+          passed: cards.length - failures.length,
+          failures
+        };
+      };
+
+      document.getElementById("audit").addEventListener(
+        "click",
+        window.auditLinkClassification
+      );
+    </script>
+  </body>
+</html>
