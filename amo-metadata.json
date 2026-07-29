@@ -1,9 +1,8 @@
 {
   "version": {
     "release_notes": {
-      "en-US": "Keeps warning labels upright and readable when webpages apply conflicting CSS. Adds Firefox ESR 140 desktop compatibility while retaining Firefox 142 as the Android minimum."
+      "en-US": "Reduces false warnings on legitimate Google, cloud infrastructure, filenames, versions, dates, and other dotted text. Improves detection of misleading domains, shared-hosting boundaries, Unicode brand lookalikes, accessibility labels, dynamically added links, and subframe links. Warning labels remain isolated from conflicting webpage CSS."
     },
-    "approval_notes": "Version 0.1.1 fixes a display bug caused by webpage CSS affecting the injected warning label. The label is now isolated in a closed Shadow DOM with explicit orientation resets. The extension continues to analyze links entirely on-device and contains no remote requests, telemetry, accounts, or external services. Tests, Mozilla lint, and a headless Firefox ESR 140 launch passed before submission."
+    "approval_notes": "Version 0.1.2 improves deterministic link analysis to reduce both false positives and false negatives. It adds token-aware brand matching, selected Unicode confusable handling, stronger visible-domain parsing, common country-code and shared-hosting boundaries, accessibility label analysis, MutationObserver rescans, open Shadow DOM scanning, and matching subframe injection. The all_frames and match_about_blank content-script settings add no new permission. Analysis remains entirely on-device with no remote requests, telemetry, accounts, or external services, and the declared data collection remains none. The supplied 150-case regression fixture passed in headless Firefox ESR 140, all automated tests passed, and Mozilla lint reported no errors, warnings, or notices before submission."
   }
 }
-

@@ -74,8 +74,102 @@
     "lnkd.in"
   ]);
 
+  const COMMON_CC_SECOND_LEVEL_LABELS = new Set([
+    "ac",
+    "co",
+    "com",
+    "edu",
+    "gov",
+    "net",
+    "org"
+  ]);
+
+  // These services assign independent sites below a shared parent domain. Treat
+  // the tenant label as part of the site boundary when comparing visible and
+  // destination domains.
+  const SHARED_HOSTING_SUFFIXES = new Set([
+    "appspot.com",
+    "cloudfront.net",
+    "firebaseapp.com",
+    "github.io",
+    "herokuapp.com",
+    "netlify.app",
+    "pages.dev",
+    "vercel.app",
+    "web.app"
+  ]);
+
+  // Dotted product names and filenames are common link text but are not useful
+  // evidence that a link claims a different destination.
+  const NON_DOMAIN_SUFFIXES = new Set([
+    "css",
+    "csv",
+    "doc",
+    "docx",
+    "exe",
+    "gif",
+    "gz",
+    "htm",
+    "html",
+    "iso",
+    "jpeg",
+    "jpg",
+    "js",
+    "json",
+    "mp3",
+    "mp4",
+    "pdf",
+    "png",
+    "ppt",
+    "pptx",
+    "svg",
+    "tar",
+    "txt",
+    "webp",
+    "xls",
+    "xlsx",
+    "xml",
+    "yaml",
+    "yml"
+  ]);
+
+  const HIGH_RISK_BRAND_AFFIXES = new Set([
+    "account",
+    "auth",
+    "billing",
+    "careers",
+    "login",
+    "secure",
+    "security",
+    "signin",
+    "support",
+    "verify"
+  ]);
+
+  const CONFUSABLE_CHARACTERS = {
+    "\u03b1": "a",
+    "\u03bf": "o",
+    "\u03c1": "p",
+    "\u03c5": "y",
+    "\u0430": "a",
+    "\u0435": "e",
+    "\u043e": "o",
+    "\u0440": "p",
+    "\u0441": "c",
+    "\u0443": "y",
+    "\u0445": "x",
+    "\u0455": "s",
+    "\u0456": "i",
+    "\u0458": "j",
+    "\u04bb": "h",
+    "\u04cf": "l",
+    "\u0501": "d",
+    "\u051b": "q",
+    "\u051d": "w"
+  };
+
   const BRANDS = [
-    { name: "google", domains: ["google.com", "gmail.com"] },
+    { name: "google", domains: ["google.com", "google", "gmail.com"] },
     { name: "microsoft", domains: ["microsoft.com", "office.com", "live.com"] },
     { name: "apple", domains: ["apple.com"] },
     { name: "amazon", domains: ["amazon.com"] },
@@ -84,7 +178,7 @@
     { name: "facebook", domains: ["facebook.com", "fb.com"] },
     { name: "instagram", domains: ["instagram.com"] },
     { name: "linkedin", domains: ["linkedin.com"] },
-    { name: "github", domains: ["github.com"] }
+    { name: "github", domains: ["github.com", "github.io"] }
   ];
 
   let lastScan = {
@@ -94,7 +188,10 @@
   };
 
   function normalizeHost(hostname) {
-    return hostname.toLowerCase().replace(/^www\./, "");
+    return hostname
+      .toLowerCase()
+      .replace(/\.+$/, "")
+      .replace(/^www\./, "");
   }
 
   function isSameOrSubdomain(hostname, domain) {
@@ -102,18 +199,41 @@
   }
 
   function getSimpleBaseDomain(hostname) {
-    const parts = normalizeHost(hostname).split(".").filter(Boolean);
+    const host = normalizeHost(hostname);
+    if (isIpAddress(host)) {
+      return host;
+    }
+
+    const parts = host.split(".").filter(Boolean);
     if (parts.length <= 2) {
       return parts.join(".");
     }
 
-    const lastTwo = parts.slice(-2).join(".");
-    const publicSuffixLike = new Set(["co.uk", "org.uk", "ac.uk", "com.au", "com.br"]);
-    if (publicSuffixLike.has(lastTwo) && parts.length >= 3) {
+    const sharedSuffix = Array.from(SHARED_HOSTING_SUFFIXES).find(
+      (suffix) => host === suffix || host.endsWith("." + suffix)
+    );
+    if (sharedSuffix) {
+      if (host === sharedSuffix) {
+        return host;
+      }
+
+      const tenantLabels = host
+        .slice(0, -(sharedSuffix.length + 1))
+        .split(".");
+      return tenantLabels.at(-1) + "." + sharedSuffix;
+    }
+
+    const topLevel = parts.at(-1);
+    const secondLevel = parts.at(-2);
+    if (
+      topLevel.length === 2 &&
+      COMMON_CC_SECOND_LEVEL_LABELS.has(secondLevel) &&
+      parts.length >= 3
+    ) {
       return parts.slice(-3).join(".");
     }
 
-    return lastTwo;
+    return parts.slice(-2).join(".");
   }
 
   function getUrl(anchor) {
@@ -134,27 +254,208 @@
     return host.includes(":") && /^[0-9a-f:.]+$/i.test(host);
   }
 
-  function extractVisibleDomain(text) {
-    const cleaned = text.trim().toLowerCase();
-    const match = cleaned.match(
-      /(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)(?:[/?#:\s]|$)/i
-    );
+  function isPlausibleVisibleHost(hostname) {
+    const host = normalizeHost(hostname);
+    if (isIpAddress(host)) {
+      return true;
+    }
 
-    return match ? normalizeHost(match[1]) : null;
-  }
-
-  function hasMismatchedVisibleDomain(anchor, targetHost) {
-    const visibleDomain = extractVisibleDomain(anchor.textContent || "");
-    if (!visibleDomain) {
+    const parts = host.split(".").filter(Boolean);
+    if (parts.length < 2) {
       return false;
     }
 
-    return getSimpleBaseDomain(visibleDomain) !== getSimpleBaseDomain(targetHost);
+    const topLevel = parts.at(-1);
+    if (
+      NON_DOMAIN_SUFFIXES.has(topLevel) ||
+      !/^(?:[a-z\u0080-\uffff]{2,63}|xn--[a-z0-9-]{1,59}|test)$/i.test(topLevel)
+    ) {
+      return false;
+    }
+
+    const singleLetterLabels = parts
+      .slice(0, -1)
+      .filter((part) => /^[a-z]$/i.test(part));
+    return singleLetterLabels.length < 2;
+  }
+
+  function extractVisibleDomain(text) {
+    const domainPattern =
+      /(?:https?:\/\/)?(?:www\.)?((?:[a-z0-9\u0080-\uffff](?:[a-z0-9\u0080-\uffff-]{0,61}[a-z0-9\u0080-\uffff])?\.)+[a-z0-9\u0080-\uffff](?:[a-z0-9\u0080-\uffff-]{0,61}[a-z0-9\u0080-\uffff])?)(?::\d{1,5})?(?=[/?#\s,.;!?)\]}:'"»]|$)/gi;
+
+    for (const match of text.trim().matchAll(domainPattern)) {
+      const host = normalizeHost(match[1]);
+      if (isPlausibleVisibleHost(host)) {
+        return host;
+      }
+    }
+
+    return null;
+  }
+
+  function getPresentedLinkTexts(anchor) {
+    const texts = [];
+    const renderedText =
+      typeof anchor.innerText === "string"
+        ? anchor.innerText
+        : anchor.textContent || "";
+
+    if (renderedText.trim()) {
+      texts.push(renderedText);
+    }
+
+    for (const attribute of ["aria-label", "title"]) {
+      const value = anchor.getAttribute(attribute);
+      if (value && value.trim()) {
+        texts.push(value);
+      }
+    }
+
+    if (typeof anchor.querySelectorAll === "function") {
+      anchor.querySelectorAll("img[alt]").forEach((image) => {
+        const alt = image.getAttribute("alt");
+        if (alt && alt.trim()) {
+          texts.push(alt);
+        }
+      });
+    }
+
+    return texts;
+  }
+
+  function hasMismatchedVisibleDomain(anchor, targetHost) {
+    const targetBaseDomain = getSimpleBaseDomain(targetHost);
+
+    return getPresentedLinkTexts(anchor).some((text) => {
+      const visibleDomain = extractVisibleDomain(text);
+      return (
+        visibleDomain &&
+        getSimpleBaseDomain(visibleDomain) !== targetBaseDomain
+      );
+    });
+  }
+
+  function decodePunycode(input) {
+    const base = 36;
+    const initialN = 128;
+    const initialBias = 72;
+    const delimiter = "-";
+    const output = [];
+    let index = 0;
+    let n = initialN;
+    let bias = initialBias;
+    let i = 0;
+
+    function decodeDigit(codePoint) {
+      if (codePoint >= 48 && codePoint <= 57) {
+        return codePoint - 22;
+      }
+      if (codePoint >= 65 && codePoint <= 90) {
+        return codePoint - 65;
+      }
+      if (codePoint >= 97 && codePoint <= 122) {
+        return codePoint - 97;
+      }
+      return base;
+    }
+
+    function adapt(delta, pointCount, firstTime) {
+      let value = firstTime ? Math.floor(delta / 700) : delta >> 1;
+      value += Math.floor(value / pointCount);
+      let k = 0;
+
+      while (value > 455) {
+        value = Math.floor(value / 35);
+        k += base;
+      }
+
+      return k + Math.floor((36 * value) / (value + 38));
+    }
+
+    const basicEnd = input.lastIndexOf(delimiter);
+    if (basicEnd >= 0) {
+      for (let position = 0; position < basicEnd; position += 1) {
+        output.push(input.charCodeAt(position));
+      }
+      index = basicEnd + 1;
+    }
+
+    while (index < input.length) {
+      const oldI = i;
+      let weight = 1;
+
+      for (let k = base; ; k += base) {
+        if (index >= input.length) {
+          throw new Error("Invalid Punycode label");
+        }
+
+        const digit = decodeDigit(input.charCodeAt(index));
+        index += 1;
+        if (digit >= base) {
+          throw new Error("Invalid Punycode digit");
+        }
+
+        i += digit * weight;
+        const threshold =
+          k <= bias + 1 ? 1 : k >= bias + 26 ? 26 : k - bias;
+        if (digit < threshold) {
+          break;
+        }
+        weight *= base - threshold;
+      }
+
+      const outputLength = output.length + 1;
+      bias = adapt(i - oldI, outputLength, oldI === 0);
+      n += Math.floor(i / outputLength);
+      i %= outputLength;
+      output.splice(i, 0, n);
+      i += 1;
+    }
+
+    return String.fromCodePoint(...output);
+  }
+
+  function decodeHostname(hostname) {
+    return normalizeHost(hostname)
+      .split(".")
+      .map((label) => {
+        if (!label.startsWith("xn--")) {
+          return label;
+        }
+
+        try {
+          return decodePunycode(label.slice(4));
+        } catch (_error) {
+          return label;
+        }
+      })
+      .join(".");
+  }
+
+  function getConfusableSkeleton(value) {
+    return Array.from(value.normalize("NFKD").toLowerCase())
+      .map((character) => CONFUSABLE_CHARACTERS[character] || character)
+      .join("")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function labelUsesBrand(label, brandName) {
+    const skeleton = getConfusableSkeleton(label);
+    const tokens = skeleton.split(/[^a-z0-9]+/).filter(Boolean);
+    if (tokens.includes(brandName)) {
+      return true;
+    }
+
+    return Array.from(HIGH_RISK_BRAND_AFFIXES).some(
+      (affix) =>
+        skeleton === brandName + affix ||
+        skeleton === affix + brandName
+    );
   }
 
   function hasBrandImpersonation(hostname) {
     const host = normalizeHost(hostname);
-    const compactHost = host.replace(/[^a-z0-9]/g, "");
+    const decodedLabels = decodeHostname(host).split(".");
 
     return BRANDS.some((brand) => {
       const isOfficial = brand.domains.some((domain) => isSameOrSubdomain(host, domain));
@@ -162,7 +463,7 @@
         return false;
       }
 
-      return compactHost.includes(brand.name);
+      return decodedLabels.some((label) => labelUsesBrand(label, brand.name));
     });
   }
 
@@ -175,7 +476,11 @@
     const host = normalizeHost(url.hostname);
     const reasons = [];
 
-    if (SHORTENER_HOSTS.has(host)) {
+    if (
+      Array.from(SHORTENER_HOSTS).some((shortener) =>
+        isSameOrSubdomain(host, shortener)
+      )
+    ) {
       reasons.push("URL shortener");
     }
 
@@ -249,8 +554,57 @@
     }
   }
 
+  function getScanRoots() {
+    const roots = [document];
+    const pending = [document];
+
+    while (pending.length > 0) {
+      const root = pending.shift();
+      root.querySelectorAll("*").forEach((element) => {
+        if (element.shadowRoot) {
+          roots.push(element.shadowRoot);
+          pending.push(element.shadowRoot);
+        }
+      });
+    }
+
+    return roots;
+  }
+
+  function getScannableAnchors() {
+    const anchors = new Set();
+    getScanRoots().forEach((root) => {
+      root.querySelectorAll("a[href]").forEach((anchor) => anchors.add(anchor));
+    });
+    return Array.from(anchors);
+  }
+
+  let linkObserver = null;
+  let rescanTimer = null;
+
+  function observeScanRoots() {
+    if (!linkObserver) {
+      return;
+    }
+
+    linkObserver.disconnect();
+    getScanRoots().forEach((root) => {
+      linkObserver.observe(root, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["href", "title", "aria-label", "alt"]
+      });
+    });
+  }
+
   function scanLinks() {
-    const anchors = Array.from(document.querySelectorAll("a[href]"));
+    if (linkObserver) {
+      linkObserver.disconnect();
+    }
+
+    const anchors = getScannableAnchors();
     const summary = {
       totalLinks: anchors.length,
       suspiciousLinks: 0,
@@ -274,7 +628,55 @@
     });
 
     lastScan = summary;
+    observeScanRoots();
     return summary;
+  }
+
+  function nodeContainsLink(node) {
+    return (
+      node.nodeType === Node.ELEMENT_NODE &&
+      (node.matches("a[href]") ||
+        node.querySelector("a[href]") ||
+        node.shadowRoot)
+    );
+  }
+
+  function mutationTouchesLink(mutation) {
+    if (mutation.type === "attributes") {
+      return (
+        mutation.target.matches("a[href]") ||
+        Boolean(mutation.target.closest("a[href]"))
+      );
+    }
+
+    if (mutation.type === "characterData") {
+      return Boolean(
+        mutation.target.parentElement &&
+        mutation.target.parentElement.closest("a[href]")
+      );
+    }
+
+    if (
+      mutation.target.nodeType === Node.ELEMENT_NODE &&
+      mutation.target.closest("a[href]")
+    ) {
+      return true;
+    }
+
+    return [...mutation.addedNodes, ...mutation.removedNodes].some(
+      nodeContainsLink
+    );
+  }
+
+  function scheduleRescan() {
+    if (rescanTimer !== null) {
+      clearTimeout(rescanTimer);
+    }
+
+    rescanTimer = setTimeout(() => {
+      rescanTimer = null;
+      scanLinks();
+    }, 100);
   }
 
   extensionApi.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -284,4 +686,13 @@
   });
 
   scanLinks();
+
+  if (typeof MutationObserver !== "undefined") {
+    linkObserver = new MutationObserver((mutations) => {
+      if (mutations.some(mutationTouchesLink)) {
+        scheduleRescan();
+      }
+    });
+    observeScanRoots();
+  }
 })();
