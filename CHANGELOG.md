@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.4 - 2026-07-29
+
+- Recognize Microsoft Teams government-cloud hosts under `microsoft.us` and
+  Microsoft's `.microsoft` namespace as official Microsoft destinations.
+- Treat `aka.ms`, `microsoft.com`, `microsoft.us`, `.microsoft`, `office.com`,
+  and `live.com` as related Microsoft-owned destination identities when
+  comparing visible and actual domains.
+- Unwrap only Microsoft's documented
+  `*.safelinks.protection.outlook.com` links for local analysis, preventing
+  legitimate email-security rewriting from causing mismatch warnings.
+- Continue checking the embedded Safe Links destination for URL shorteners, IP
+  addresses, misleading domains, and brand impersonation, and reject Safe Links
+  lookalike hosts.
+- Add 83 Teams, Microsoft-domain, Safe Links, and adversarial classification
+  permutations. The expanded real-Firefox fixture now contains 56 cases.
+
 ## 0.1.3 - 2026-07-29
 
 - Treat Reddit's canonical, short-link, media, and deep-link hosts as related

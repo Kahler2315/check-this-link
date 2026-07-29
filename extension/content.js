@@ -104,8 +104,18 @@
   // These groups are intentionally small: only domains that can safely be
   // treated as the same destination identity belong here.
   const RELATED_SITE_GROUPS = [
-    new Set(["reddit.com", "redd.it", "reddit.app.link"])
+    new Set(["reddit.com", "redd.it", "reddit.app.link"]),
+    new Set([
+      "aka.ms",
+      "live.com",
+      "microsoft",
+      "microsoft.com",
+      "microsoft.us",
+      "office.com"
+    ])
   ];
+
+  const MICROSOFT_SAFE_LINKS_SUFFIX = "safelinks.protection.outlook.com";
 
   // Dotted product names and filenames are common link text but are not useful
   // evidence that a link claims a different destination.
@@ -178,7 +188,16 @@
 
   const BRANDS = [
     { name: "google", domains: ["google.com", "google", "gmail.com"] },
-    { name: "microsoft", domains: ["microsoft.com", "office.com", "live.com"] },
+    {
+      name: "microsoft",
+      domains: [
+        "microsoft.com",
+        "microsoft.us",
+        "microsoft",
+        "office.com",
+        "live.com"
+      ]
+    },
     { name: "apple", domains: ["apple.com"] },
     { name: "amazon", domains: ["amazon.com"] },
     { name: "paypal", domains: ["paypal.com"] },
@@ -250,6 +269,38 @@
     } catch (_error) {
       return null;
     }
+  }
+
+  function getEffectiveUrl(url) {
+    let effectiveUrl = url;
+
+    // Microsoft Safe Links stores the original destination in its `url`
+    // parameter. Unwrap only the documented Microsoft-controlled hostname,
+    // and keep analyzing the embedded URL so the wrapper cannot hide an IP,
+    // shortener, lookalike, or genuinely mismatched destination.
+    for (let depth = 0; depth < 3; depth += 1) {
+      const host = normalizeHost(effectiveUrl.hostname);
+      if (!isSameOrSubdomain(host, MICROSOFT_SAFE_LINKS_SUFFIX)) {
+        break;
+      }
+
+      const wrappedDestination = effectiveUrl.searchParams.get("url");
+      if (!wrappedDestination) {
+        break;
+      }
+
+      try {
+        const candidate = new URL(wrappedDestination);
+        if (!["http:", "https:"].includes(candidate.protocol)) {
+          break;
+        }
+        effectiveUrl = candidate;
+      } catch (_error) {
+        break;
+      }
+    }
+
+    return effectiveUrl;
   }
 
   function isIpAddress(hostname) {
@@ -375,6 +426,19 @@
     return texts;
   }
 
+  function isRelatedSite(leftBaseDomain, rightBaseDomain) {
+    return RELATED_SITE_GROUPS.some((group) => {
+      const domains = Array.from(group);
+      const includesLeft = domains.some((domain) =>
+        isSameOrSubdomain(leftBaseDomain, domain)
+      );
+      const includesRight = domains.some((domain) =>
+        isSameOrSubdomain(rightBaseDomain, domain)
+      );
+      return includesLeft && includesRight;
+    });
+  }
+
   function hasMismatchedVisibleDomain(anchor, targetHost) {
     const targetBaseDomain = getSimpleBaseDomain(targetHost);
 
@@ -386,10 +450,7 @@
       return (
         visibleBaseDomain &&
         visibleBaseDomain !== targetBaseDomain &&
-        !RELATED_SITE_GROUPS.some(
-          (group) =>
-            group.has(visibleBaseDomain) && group.has(targetBaseDomain)
-        )
+        !isRelatedSite(visibleBaseDomain, targetBaseDomain)
       );
     });
   }
@@ -527,11 +588,12 @@
   }
 
   function getSuspiciousReasons(anchor) {
-    const url = getUrl(anchor);
-    if (!url || !["http:", "https:"].includes(url.protocol)) {
+    const anchorUrl = getUrl(anchor);
+    if (!anchorUrl || !["http:", "https:"].includes(anchorUrl.protocol)) {
       return [];
     }
 
+    const url = getEffectiveUrl(anchorUrl);
     const host = normalizeHost(url.hostname);
     const reasons = [];
 

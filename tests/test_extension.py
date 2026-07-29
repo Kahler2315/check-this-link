@@ -17,7 +17,7 @@ class RecoveredExtensionTests(unittest.TestCase):
 
     def test_manifest_identity_is_preserved(self):
         self.assertEqual(self.manifest["name"], "Check This Link")
-        self.assertEqual(self.manifest["version"], "0.1.3")
+        self.assertEqual(self.manifest["version"], "0.1.4")
         self.assertEqual(
             self.manifest["browser_specific_settings"]["gecko"]["id"],
             "check-this-link@example.com",
@@ -483,6 +483,65 @@ process.stdout.write(JSON.stringify({
                 self.assertEqual(
                     self.scan_link(f"https://{attacker_host}/", "reddit.com"),
                     ["visible domain mismatch"],
+                )
+
+    def test_microsoft_site_identity_matrix(self):
+        destination_hosts = (
+            "microsoft.com",
+            "teams.microsoft.com",
+            "gov.teams.microsoft.us",
+            "dialin.cpc.gov.teams.microsoft.us",
+            "portal.usgovcloud.microsoft",
+            "office.com",
+            "live.com",
+            "aka.ms",
+        )
+        visible_hosts = (
+            "microsoft.com",
+            "teams.microsoft.com",
+            "teams.microsoft.us",
+            "usgovcloud.microsoft",
+            "office.com",
+            "live.com",
+            "aka.ms",
+        )
+
+        for destination_host in destination_hosts:
+            for visible_host in visible_hosts:
+                with self.subTest(
+                    destination=destination_host,
+                    visible=visible_host,
+                ):
+                    self.assertEqual(
+                        self.scan_link(
+                            f"https://{destination_host}/meeting",
+                            visible_host,
+                        ),
+                        [],
+                    )
+
+        attacker_cases = (
+            (
+                "gov.teams.microsoft.us.destination.test",
+                ["visible domain mismatch", "possible brand impersonation"],
+            ),
+            (
+                "usgovcloud.microsoft.destination.test",
+                ["visible domain mismatch", "possible brand impersonation"],
+            ),
+            ("microsoft-login.test", ["possible brand impersonation"]),
+            ("teams-microsoft-us.test", ["possible brand impersonation"]),
+        )
+        for attacker_host, expected in attacker_cases:
+            with self.subTest(attacker=attacker_host):
+                self.assertEqual(
+                    self.scan_link(
+                        f"https://{attacker_host}/",
+                        "microsoft.us"
+                        if "destination.test" in attacker_host
+                        else "Open meeting",
+                    ),
+                    expected,
                 )
 
     def test_dynamic_links_and_subframes_are_covered(self):
