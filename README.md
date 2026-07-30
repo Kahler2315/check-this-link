@@ -5,7 +5,7 @@
 Check This Link is a privacy-first Firefox extension that scans links on the
 current webpage and visually flags patterns that deserve a closer look.
 
-Version 0.1.4 checks locally for:
+Version 0.1.5 checks locally for:
 
 - Known URL-shortener domains
 - Direct IP-address links
@@ -46,10 +46,16 @@ content scripts.
 Install the current Node.js LTS release, then run:
 
 ```sh
-npm install
+npm ci
 npm test
 npm run lint
 npm start
+```
+
+Refresh the bundled Public Suffix List snapshot with:
+
+```sh
+node tools/generate-psl.mjs
 ```
 
 Create an unsigned development package with:
@@ -74,10 +80,9 @@ Reddit short/deep links, Microsoft Teams government-cloud and Safe Links URLs,
 rich-card labels, misleading destination claims, accessibility labels,
 shared-hosting boundaries, dynamic insertion, and badge state.
 
-If `check_this_link_codex_bundle.zip` is available, it contains a larger
-interactive regression fixture. Extract it to a temporary directory, serve that
-directory, and open the exact `localhost` URL described in its
-`CODEX_INSTRUCTIONS.md`.
+The archived regression test bundle, if you have a copy, holds a larger
+interactive fixture. Extract it to a temporary directory, serve that directory,
+and open the exact `localhost` URL named in its validation instructions.
 
 Do not upload an unsigned build as an update without first confirming the
 add-on ID in `extension/manifest.json` and following Mozilla's normal signing
@@ -88,12 +93,15 @@ process.
 ```text
 extension/
   content.js       Local link analysis and page annotations
+  psl-data.js      Generated Public Suffix List tables
   popup.html       Toolbar popup
   popup.js         Active-tab summary request
   styles.css       Page markers and popup styling
   icons/           Published extension icons
 tests/
   test_extension.py
+tools/
+  generate-psl.mjs Regenerates extension/psl-data.js
 RECOVERY.md        Recovery provenance and file hashes
 ```
 
@@ -104,9 +112,11 @@ RECOVERY.md        Recovery provenance and file hashes
 - A URL shortener can be legitimate.
 - Brand lookalike detection uses a limited local confusable-character map, not a
   complete Unicode security profile.
-- Registrable-domain comparison handles common country-code patterns and a
-  curated set of shared-hosting boundaries; it does not bundle the full Public
-  Suffix List.
+- Registrable-domain comparison uses a Public Suffix List snapshot bundled in
+  `extension/psl-data.js`, so it is only as current as that snapshot. A handful
+  of multi-tenant hosts the list does not carry are supplemented in
+  `content.js`; a provider covered by neither can still collapse two tenants
+  into one apparent site.
 - Open Shadow DOM roots are scanned, but browser isolation prevents access to
   closed Shadow DOM owned by webpages.
 - Link scanning requires access to webpages through the declared

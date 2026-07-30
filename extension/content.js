@@ -74,31 +74,19 @@
     "lnkd.in"
   ]);
 
-  const COMMON_CC_SECOND_LEVEL_LABELS = new Set([
-    "ac",
-    "co",
-    "com",
-    "edu",
-    "gov",
-    "net",
-    "org"
-  ]);
-
-  // These services assign independent sites below a shared parent domain. Treat
-  // the tenant label as part of the site boundary when comparing visible and
-  // destination domains.
-  const SHARED_HOSTING_SUFFIXES = new Set([
+  // Site boundaries come from the Public Suffix List tables in psl-data.js.
+  // These are boundaries the list does not carry but that still hand out
+  // independently controlled tenants, so two tenants must not collapse into one
+  // apparent site. Keep this list short and only add a provider whose
+  // subdomains are genuinely separate parties.
+  const ADDITIONAL_PRIVATE_SUFFIXES = new Set([
     "app.link",
-    "appspot.com",
-    "cloudfront.net",
-    "firebaseapp.com",
-    "github.io",
-    "herokuapp.com",
-    "netlify.app",
-    "pages.dev",
-    "s3.amazonaws.com",
-    "vercel.app",
-    "web.app"
+    "glitch.me",
+    "neocities.org",
+    "surge.sh",
+    "tumblr.com",
+    "weebly.com",
+    "wordpress.com"
   ]);
 
   // Some services use a separate, first-party domain for short or deep links.
@@ -226,21 +214,80 @@
     return hostname === domain || hostname.endsWith("." + domain);
   }
 
-  function getSharedHostingSuffix(hostname) {
-    const host = normalizeHost(hostname);
-    const labels = host.split(".");
-    if (labels.slice(-2).join(".") === "amazonaws.com") {
-      const s3Index = labels.findIndex(
-        (label) => label === "s3" || label.startsWith("s3-")
-      );
-      if (s3Index >= 0) {
-        return labels.slice(s3Index).join(".");
+  function matchesSuffixRule(table, rule) {
+    return table.includes("\n" + rule + "\n");
+  }
+
+  // Public Suffix List algorithm, returning how many trailing labels form the
+  // public suffix. An exception rule wins outright and shortens the suffix by
+  // one label; otherwise the longest matching rule wins. A host that matches no
+  // rule falls back to a single-label suffix, which is why psl-data.js can omit
+  // single-label rules entirely.
+  function getPublicSuffixLabelCount(labels) {
+    for (let index = 0; index < labels.length; index += 1) {
+      const candidate = labels.slice(index).join(".");
+      if (matchesSuffixRule(ICANN_SUFFIX_RULES, "!" + candidate)) {
+        return labels.length - index - 1;
+      }
+      if (matchesSuffixRule(PRIVATE_SUFFIX_RULES, "!" + candidate)) {
+        return labels.length - index - 1;
       }
     }
 
-    return Array.from(SHARED_HOSTING_SUFFIXES).find(
-      (suffix) => host === suffix || host.endsWith("." + suffix)
-    );
+    for (let index = 0; index < labels.length; index += 1) {
+      const candidate = labels.slice(index).join(".");
+      const wildcard = ["*", ...labels.slice(index + 1)].join(".");
+
+      const matched =
+        matchesSuffixRule(ICANN_SUFFIX_RULES, candidate) ||
+        matchesSuffixRule(PRIVATE_SUFFIX_RULES, candidate) ||
+        matchesSuffixRule(ICANN_SUFFIX_RULES, wildcard) ||
+        matchesSuffixRule(PRIVATE_SUFFIX_RULES, wildcard) ||
+        ADDITIONAL_PRIVATE_SUFFIXES.has(candidate);
+
+      if (matched) {
+        return labels.length - index;
+      }
+    }
+
+    return 1;
+  }
+
+  // Returns the shared-hosting boundary a host sits under, or undefined for an
+  // ordinary registry domain. Only private-section boundaries count: "com" and
+  // "co.uk" are registries rather than hosting providers, so treating them as
+  // shared hosting would break the brand-impersonation checks.
+  function getSharedHostingSuffix(hostname) {
+    const host = normalizeHost(hostname);
+    const labels = host.split(".").filter(Boolean);
+
+    for (let index = 0; index < labels.length; index += 1) {
+      const candidate = labels.slice(index).join(".");
+      const wildcard = ["*", ...labels.slice(index + 1)].join(".");
+
+      if (
+        matchesSuffixRule(PRIVATE_SUFFIX_RULES, candidate) ||
+        matchesSuffixRule(PRIVATE_SUFFIX_RULES, wildcard) ||
+        ADDITIONAL_PRIVATE_SUFFIXES.has(candidate)
+      ) {
+        return candidate;
+      }
+    }
+
+    return undefined;
+  }
+
+  function isS3BucketHost(host) {
+    const labels = host.split(".");
+    if (labels.slice(-2).join(".") !== "amazonaws.com") {
+      return false;
+    }
+
+    // A bucket name sits in front of the s3 endpoint label. Index 0 means the
+    // host is the bare endpoint, which is path-style rather than a bucket host.
+    return labels.findIndex(
+      (label) => label === "s3" || label.startsWith("s3-")
+    ) > 0;
   }
 
   function getSimpleBaseDomain(hostname) {
@@ -254,35 +301,19 @@
       return parts.join(".");
     }
 
-    const sharedSuffix = getSharedHostingSuffix(host);
-    if (sharedSuffix) {
-      if (host === sharedSuffix) {
-        return host;
-      }
-
-      // S3 bucket names may contain dots, so the entire bucket-qualified host
-      // is the tenant boundary rather than only the final prefix label.
-      if (sharedSuffix.endsWith(".amazonaws.com")) {
-        return host;
-      }
-
-      const tenantLabels = host
-        .slice(0, -(sharedSuffix.length + 1))
-        .split(".");
-      return tenantLabels.at(-1) + "." + sharedSuffix;
+    // S3 bucket names may contain dots, so the entire bucket-qualified host is
+    // the tenant boundary rather than only the label above the suffix. The
+    // regional s3-website-* endpoints are also not all listed publicly.
+    if (isS3BucketHost(host)) {
+      return host;
     }
 
-    const topLevel = parts.at(-1);
-    const secondLevel = parts.at(-2);
-    if (
-      topLevel.length === 2 &&
-      COMMON_CC_SECOND_LEVEL_LABELS.has(secondLevel) &&
-      parts.length >= 3
-    ) {
-      return parts.slice(-3).join(".");
+    const suffixLength = getPublicSuffixLabelCount(parts);
+    if (suffixLength >= parts.length) {
+      return parts.join(".");
     }
 
-    return parts.slice(-2).join(".");
+    return parts.slice(-(suffixLength + 1)).join(".");
   }
 
   function getS3PathStyleIdentity(url) {

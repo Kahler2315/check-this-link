@@ -52,9 +52,13 @@ class RecoveredExtensionTests(unittest.TestCase):
         )
 
     def test_runtime_has_no_remote_request_primitives(self):
+        # Globs rather than naming files, so a newly packaged script such as
+        # psl-data.js cannot skip this check by being forgotten here.
+        scripts = sorted(EXTENSION.rglob("*.js"))
+        self.assertIn(EXTENSION / "psl-data.js", scripts)
+
         runtime_source = "\n".join(
-            path.read_text(encoding="utf-8")
-            for path in (EXTENSION / "content.js", EXTENSION / "popup.js")
+            path.read_text(encoding="utf-8") for path in scripts
         )
 
         for primitive in (
@@ -177,8 +181,12 @@ const browser = {
   }
 };
 
+// The manifest loads psl-data.js ahead of content.js in the same content-script
+// scope, so the harness has to provide the suffix tables the same way.
+const pslPath = require("path").join(require("path").dirname(contentPath), "psl-data.js");
+
 vm.runInNewContext(
-  fs.readFileSync(contentPath, "utf8"),
+  fs.readFileSync(pslPath, "utf8") + "\n" + fs.readFileSync(contentPath, "utf8"),
   { browser, document, URL }
 );
 
@@ -449,6 +457,76 @@ setImmediate(() => {
             ),
             [],
         )
+
+    def test_public_suffix_tenants_are_separate_sites(self):
+        """Providers that were never in the old curated list. Each pair is two
+        independently controlled tenants that previously collapsed to the shared
+        provider domain and suppressed the mismatch warning."""
+        suffixes = (
+            "blogspot.com",
+            "wixsite.com",
+            "repl.co",
+            "glitch.me",
+            "surge.sh",
+            "neocities.org",
+            "gitlab.io",
+            "azurewebsites.net",
+            "cloudapp.net",
+            "fastly-terrarium.com",
+            "wordpress.com",
+            "tumblr.com",
+            "weebly.com",
+            "app.link",
+        )
+
+        for suffix in suffixes:
+            with self.subTest(suffix=suffix):
+                self.assertEqual(
+                    self.scan_link(
+                        f"https://attacker.{suffix}/",
+                        f"victim.{suffix}",
+                    ),
+                    ["visible domain mismatch"],
+                )
+
+    def test_private_suffix_tenant_matches_itself(self):
+        """The separation above must not turn every tenant link into a warning."""
+        for host in ("victim.blogspot.com", "victim.wixsite.com", "victim.github.io"):
+            with self.subTest(host=host):
+                self.assertEqual(
+                    self.scan_link(f"https://{host}/account", host),
+                    [],
+                )
+
+    def test_multi_label_public_suffixes_are_respected(self):
+        """Registry boundaries the old last-two-labels fallback got wrong."""
+        distinct = (
+            ("attacker.act.edu.au", "victim.act.edu.au"),
+            ("attacker.co.uk", "victim.co.uk"),
+            ("attacker.police.uk", "victim.police.uk"),
+            ("attacker.k12.ak.us", "victim.k12.ak.us"),
+            ("attacker.com.br", "victim.com.br"),
+        )
+
+        for destination, visible in distinct:
+            with self.subTest(destination=destination):
+                self.assertEqual(
+                    self.scan_link(f"https://{destination}/", visible),
+                    ["visible domain mismatch"],
+                )
+
+    def test_ordinary_subdomains_remain_one_site(self):
+        """Same-site subdomains must not be split apart by the suffix rules."""
+        same_site = (
+            ("https://mail.google.com/inbox", "drive.google.com"),
+            ("https://a.b.example.com/x", "c.example.com"),
+            ("https://shop.example.co.uk/x", "www.example.co.uk"),
+            ("https://deep.sub.example.act.edu.au/x", "example.act.edu.au"),
+        )
+
+        for destination, visible in same_site:
+            with self.subTest(destination=destination):
+                self.assertEqual(self.scan_link(destination, visible), [])
 
     def test_brand_matching_does_not_use_unbounded_substrings(self):
         legitimate_hosts = (
