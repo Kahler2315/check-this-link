@@ -17,11 +17,21 @@ class RecoveredExtensionTests(unittest.TestCase):
 
     def test_manifest_identity_is_preserved(self):
         self.assertEqual(self.manifest["name"], "Check This Link")
-        self.assertEqual(self.manifest["version"], "0.1.5")
         self.assertEqual(
             self.manifest["browser_specific_settings"]["gecko"]["id"],
             "check-this-link@example.com",
         )
+
+    def test_manifest_and_package_versions_agree(self):
+        """A hardcoded expected version only records the last release. What
+        actually matters is that the packaged manifest and the npm version do
+        not drift apart, because AMO signs whatever the manifest says."""
+        package = json.loads(
+            (EXTENSION.parent / "package.json").read_text(encoding="utf-8")
+        )
+
+        self.assertRegex(self.manifest["version"], r"^\d+\.\d+\.\d+$")
+        self.assertEqual(self.manifest["version"], package["version"])
 
     def test_manifest_references_existing_files(self):
         referenced_paths = {

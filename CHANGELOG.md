@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.1.6 - 2026-07-30
+
+- Determine site boundaries from a bundled Public Suffix List snapshot instead
+  of a curated list of eleven providers followed by a last-two-labels guess.
+  Independently controlled tenants on shared hosting, such as two Blogspot
+  sites, previously collapsed to the same apparent site and suppressed the
+  visible-domain mismatch warning.
+- Evaluate the list with its own algorithm, including wildcard rules, exception
+  rules, and private suffixes. Multi-label registry boundaries such as
+  `act.edu.au`, `police.uk`, and `k12.ak.us` are now handled correctly.
+- Supplement the list with seven multi-tenant platforms it does not carry,
+  including `wordpress.com`, `glitch.me`, and `app.link`.
+- Keep S3 bucket-qualified hosts resolving to the whole host, since bucket
+  names may contain dots and the regional `s3-website-*` endpoints are not all
+  publicly listed.
+- Pin every release workflow action to a full commit SHA and add a Dependabot
+  configuration, so a moved upstream tag cannot change what runs in the job
+  that handles Firefox signing credentials.
+- Add regression coverage for tenant separation across fourteen providers,
+  same-tenant links, multi-label registry suffixes, and ordinary same-site
+  subdomains.
+
+The list snapshot lives in `extension/psl-data.js` and is regenerated with
+`node tools/generate-psl.mjs`. Analysis remains entirely local and no lookup
+leaves the browser.
+
+## 0.1.5 - 2026-07-30
+
+- Treat Amazon S3 bucket-qualified virtual-hosted and path-style URLs as tenant
+  identities rather than trusting the shared `amazonaws.com` suffix, and apply
+  tenant-aware checks to other shared-hosting services.
+- Recognize additional destination-claim phrases such as secure sign-in and
+  account-access text.
+- Check brand impersonation against the tenant labels on shared hosts rather
+  than the provider labels.
+- Cap visible-domain match collection at the two values the classifier needs,
+  and bound mutation-rescan scheduling.
+- Request popup summaries explicitly from the top frame.
+- Add `SECURITY.md`, strengthen `.gitignore`, and remove a local machine path
+  from `RECOVERY.md`.
+
 ## 0.1.4 - 2026-07-29
 
 - Recognize Microsoft Teams government-cloud hosts under `microsoft.us` and

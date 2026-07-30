@@ -5,7 +5,7 @@
 Check This Link is a privacy-first Firefox extension that scans links on the
 current webpage and visually flags patterns that deserve a closer look.
 
-Version 0.1.5 checks locally for:
+Version 0.1.6 checks locally for:
 
 - Known URL-shortener domains
 - Direct IP-address links
