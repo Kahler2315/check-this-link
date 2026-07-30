@@ -17,7 +17,7 @@ class RecoveredExtensionTests(unittest.TestCase):
 
     def test_manifest_identity_is_preserved(self):
         self.assertEqual(self.manifest["name"], "Check This Link")
-        self.assertEqual(self.manifest["version"], "0.1.4")
+        self.assertEqual(self.manifest["version"], "0.1.5")
         self.assertEqual(
             self.manifest["browser_specific_settings"]["gecko"]["id"],
             "check-this-link@example.com",
@@ -211,6 +211,98 @@ process.stdout.write(JSON.stringify({
         )
         return json.loads(result.stdout)["reasons"]
 
+    def run_popup(self, api_name):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+
+class FakeElement {
+  constructor() {
+    this.textContent = "";
+    this.children = [];
+    this._innerHTML = "";
+  }
+  get innerHTML() {
+    return this._innerHTML;
+  }
+  set innerHTML(value) {
+    this._innerHTML = value;
+    if (value === "") {
+      this.children = [];
+    }
+  }
+  appendChild(child) {
+    this.children.push(child);
+  }
+}
+
+const elements = new Map([
+  ["total-links", new FakeElement()],
+  ["suspicious-links", new FakeElement()],
+  ["reason-list", new FakeElement()]
+]);
+const summary = { totalLinks: 7, suspiciousLinks: 2, reasons: { test: 2 } };
+let observed;
+const tabs = {
+  query(queryInfo, callback) {
+    if (callback) {
+      callback([{ id: 123 }]);
+      return;
+    }
+    return Promise.resolve([{ id: 123 }]);
+  },
+  sendMessage(tabId, message, options, callback) {
+    observed = { tabId, message, options };
+    if (callback) {
+      callback(summary);
+      return;
+    }
+    return Promise.resolve(summary);
+  }
+};
+const context = {
+  document: {
+    getElementById(id) {
+      return elements.get(id);
+    },
+    createElement() {
+      return new FakeElement();
+    }
+  },
+  Promise,
+  setTimeout,
+  clearTimeout
+};
+if (process.argv[2] === "browser") {
+  context.browser = { runtime: { onMessage: {} }, tabs };
+} else {
+  context.chrome = { runtime: { lastError: null }, tabs };
+}
+vm.runInNewContext(fs.readFileSync(process.argv[1], "utf8"), context);
+setImmediate(() => {
+  process.stdout.write(JSON.stringify({
+    observed,
+    rendered: {
+      totalLinks: elements.get("total-links").textContent,
+      suspiciousLinks: elements.get("suspicious-links").textContent
+    }
+  }));
+});
+"""
+        result = subprocess.run(
+            [
+                "node",
+                "-e",
+                script,
+                str(EXTENSION / "popup.js"),
+                api_name,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return json.loads(result.stdout)
+
     def test_official_dot_google_link_is_not_brand_impersonation(self):
         reasons = self.scan_link(
             "https://about.google/products/",
@@ -320,6 +412,10 @@ process.stdout.write(JSON.stringify({
             "netlify.app",
             "appspot.com",
             "cloudfront.net",
+            "s3.amazonaws.com",
+            "s3.us-east-1.amazonaws.com",
+            "s3-us-west-2.amazonaws.com",
+            "s3-website-us-east-2.amazonaws.com",
         )
 
         for suffix in suffixes:
@@ -331,6 +427,28 @@ process.stdout.write(JSON.stringify({
                     ),
                     ["visible domain mismatch"],
                 )
+
+        self.assertEqual(
+            self.scan_link(
+                "https://attacker.team.s3.us-east-1.amazonaws.com/",
+                "victim.team.s3.us-east-1.amazonaws.com",
+            ),
+            ["visible domain mismatch"],
+        )
+        self.assertEqual(
+            self.scan_link(
+                "https://s3.us-east-1.amazonaws.com/attacker-bucket/login",
+                "https://s3.us-east-1.amazonaws.com/victim-bucket/login",
+            ),
+            ["visible domain mismatch"],
+        )
+        self.assertEqual(
+            self.scan_link(
+                "https://s3.us-east-1.amazonaws.com/victim-bucket/login",
+                "https://s3.us-east-1.amazonaws.com/victim-bucket/account",
+            ),
+            [],
+        )
 
     def test_brand_matching_does_not_use_unbounded_substrings(self):
         legitimate_hosts = (
@@ -357,6 +475,16 @@ process.stdout.write(JSON.stringify({
                     self.scan_link(f"https://{host}/", "Open resource"),
                     [],
                 )
+
+    def test_shared_hosting_brand_checks_inspect_tenant_not_provider(self):
+        self.assertEqual(
+            self.scan_link("https://user.github.io/", "Open project"),
+            [],
+        )
+        self.assertEqual(
+            self.scan_link("https://github-login.github.io/", "Sign in"),
+            ["possible brand impersonation"],
+        )
 
     def test_brand_tokens_and_unicode_confusables_are_detected(self):
         suspicious_hosts = (
@@ -552,6 +680,33 @@ process.stdout.write(JSON.stringify({
         self.assertTrue(content_script["match_about_blank"])
         self.assertIn("new MutationObserver", content_source)
         self.assertIn('attributeFilter: ["href", "title", "aria-label", "alt"]', content_source)
+
+        for api_name in ("browser", "chrome"):
+            with self.subTest(api=api_name):
+                popup_result = self.run_popup(api_name)
+                self.assertEqual(popup_result["observed"]["tabId"], 123)
+                self.assertEqual(
+                    popup_result["observed"]["message"],
+                    {"type": "LINKGUARD_GET_SUMMARY"},
+                )
+                self.assertEqual(
+                    popup_result["observed"]["options"],
+                    {"frameId": 0},
+                )
+                self.assertEqual(
+                    popup_result["rendered"],
+                    {"totalLinks": "7", "suspiciousLinks": "2"},
+                )
+
+    def test_visible_domain_work_and_mutation_rescans_are_bounded(self):
+        content_source = (EXTENSION / "content.js").read_text(encoding="utf-8")
+
+        self.assertIn("if (matches.length === 2)", content_source)
+        self.assertIn(
+            "if (rescanTimer !== null) {\n      return;",
+            content_source,
+        )
+        self.assertNotIn("clearTimeout(rescanTimer)", content_source)
 
 
 if __name__ == "__main__":

@@ -96,6 +96,7 @@
     "herokuapp.com",
     "netlify.app",
     "pages.dev",
+    "s3.amazonaws.com",
     "vercel.app",
     "web.app"
   ]);
@@ -225,6 +226,23 @@
     return hostname === domain || hostname.endsWith("." + domain);
   }
 
+  function getSharedHostingSuffix(hostname) {
+    const host = normalizeHost(hostname);
+    const labels = host.split(".");
+    if (labels.slice(-2).join(".") === "amazonaws.com") {
+      const s3Index = labels.findIndex(
+        (label) => label === "s3" || label.startsWith("s3-")
+      );
+      if (s3Index >= 0) {
+        return labels.slice(s3Index).join(".");
+      }
+    }
+
+    return Array.from(SHARED_HOSTING_SUFFIXES).find(
+      (suffix) => host === suffix || host.endsWith("." + suffix)
+    );
+  }
+
   function getSimpleBaseDomain(hostname) {
     const host = normalizeHost(hostname);
     if (isIpAddress(host)) {
@@ -236,11 +254,15 @@
       return parts.join(".");
     }
 
-    const sharedSuffix = Array.from(SHARED_HOSTING_SUFFIXES).find(
-      (suffix) => host === suffix || host.endsWith("." + suffix)
-    );
+    const sharedSuffix = getSharedHostingSuffix(host);
     if (sharedSuffix) {
       if (host === sharedSuffix) {
+        return host;
+      }
+
+      // S3 bucket names may contain dots, so the entire bucket-qualified host
+      // is the tenant boundary rather than only the final prefix label.
+      if (sharedSuffix.endsWith(".amazonaws.com")) {
         return host;
       }
 
@@ -261,6 +283,24 @@
     }
 
     return parts.slice(-2).join(".");
+  }
+
+  function getS3PathStyleIdentity(url) {
+    const host = normalizeHost(url.hostname);
+    const labels = host.split(".");
+    if (
+      labels.slice(-2).join(".") !== "amazonaws.com" ||
+      !(labels[0] === "s3" || labels[0].startsWith("s3-"))
+    ) {
+      return null;
+    }
+
+    const bucket = url.pathname.split("/").find(Boolean);
+    return bucket ? normalizeHost(bucket) + "." + host : null;
+  }
+
+  function getUrlSiteIdentity(url) {
+    return getS3PathStyleIdentity(url) || getSimpleBaseDomain(url.hostname);
   }
 
   function getUrl(anchor) {
@@ -352,6 +392,11 @@
           index: match.index,
           raw: match[0]
         });
+        // Callers need the first match and only whether a second exists.
+        // Stop before hostile labels can force unbounded result allocation.
+        if (matches.length === 2) {
+          break;
+        }
       }
     }
 
@@ -363,7 +408,7 @@
     const suffix = candidateText.slice(match.index + match.raw.length);
     const wrapperOnlyPrefix = /^[\s([{"'“‘]*$/u.test(prefix);
     const destinationCuePrefix =
-      /^[\s([{"'“‘]*(?:open|visit|go(?:\s+to)?|browse(?:\s+to)?|continue(?:\s+to)?|read(?:\s+(?:at|on))?|sign\s+in(?:\s+(?:to|at))?|log\s+in(?:\s+(?:to|at))?|website|link)\s*[:\-–—]?\s*$/iu.test(
+      /^[\s([{"'“‘]*(?:open|visit|go(?:\s+to)?|browse(?:\s+to)?|continue(?:\s+to)?|read(?:\s+(?:at|on))?|sign\s+in(?:\s+(?:to|at))?|log\s+in(?:\s+(?:to|at))?|secure\s+(?:login|sign\s+in)(?:\s+(?:to|at))?|access(?:\s+(?:your\s+)?account)?(?:\s+(?:at|on))?|website|link)\s*[:\-–—]?\s*$/iu.test(
         prefix
       );
     const wrapperOnlySuffix = /^[\s)\]}"'”’».,;!?]*$/u.test(suffix);
@@ -376,24 +421,44 @@
     );
   }
 
-  function extractClaimedVisibleDomain(text) {
+  function extractClaimedVisibleSite(text) {
     const { candidateText, matches } = findVisibleDomains(text);
     if (matches.length === 0) {
       return null;
     }
 
+    let selectedMatch;
+
     // Multiple domains in one label can explicitly claim one destination and
     // then point somewhere else. Keep checking the first one in that case.
     if (matches.length > 1) {
-      return matches[0].host;
+      selectedMatch = matches[0];
+    } else if (isSimpleDestinationClaim(candidateText, matches[0])) {
+      selectedMatch = matches[0];
+    } else {
+      return null;
     }
 
-    // A domain mentioned inside a headline or rich-card description is not
-    // necessarily the destination claimed by the link. Only compare a single
-    // domain when the label itself is URL-like or uses a short navigation cue.
-    return isSimpleDestinationClaim(candidateText, matches[0])
-      ? matches[0].host
-      : null;
+    if (/^https?:\/\//i.test(selectedMatch.raw)) {
+      const suffix = candidateText.slice(
+        selectedMatch.index + selectedMatch.raw.length
+      );
+      const claimedUrlText = (selectedMatch.raw + suffix).replace(
+        /[\s)\]}"'”’».,;!?]+$/u,
+        ""
+      );
+      try {
+        const claimedUrl = new URL(claimedUrlText);
+        const s3Identity = getS3PathStyleIdentity(claimedUrl);
+        if (s3Identity) {
+          return s3Identity;
+        }
+      } catch {
+        // Fall back to the already-validated visible host.
+      }
+    }
+
+    return getSimpleBaseDomain(selectedMatch.host);
   }
 
   function getPresentedLinkTexts(anchor) {
@@ -439,18 +504,15 @@
     });
   }
 
-  function hasMismatchedVisibleDomain(anchor, targetHost) {
-    const targetBaseDomain = getSimpleBaseDomain(targetHost);
+  function hasMismatchedVisibleDomain(anchor, targetUrl) {
+    const targetSiteIdentity = getUrlSiteIdentity(targetUrl);
 
     return getPresentedLinkTexts(anchor).some((text) => {
-      const visibleDomain = extractClaimedVisibleDomain(text);
-      const visibleBaseDomain = visibleDomain
-        ? getSimpleBaseDomain(visibleDomain)
-        : null;
+      const visibleSiteIdentity = extractClaimedVisibleSite(text);
       return (
-        visibleBaseDomain &&
-        visibleBaseDomain !== targetBaseDomain &&
-        !isRelatedSite(visibleBaseDomain, targetBaseDomain)
+        visibleSiteIdentity &&
+        visibleSiteIdentity !== targetSiteIdentity &&
+        !isRelatedSite(visibleSiteIdentity, targetSiteIdentity)
       );
     });
   }
@@ -576,14 +638,25 @@
   function hasBrandImpersonation(hostname) {
     const host = normalizeHost(hostname);
     const decodedLabels = decodeHostname(host).split(".");
+    const sharedSuffix = getSharedHostingSuffix(host);
+    const labelsToCheck =
+      sharedSuffix && host !== sharedSuffix
+        ? decodeHostname(
+            host.slice(0, -(sharedSuffix.length + 1))
+          ).split(".")
+        : decodedLabels;
 
     return BRANDS.some((brand) => {
-      const isOfficial = brand.domains.some((domain) => isSameOrSubdomain(host, domain));
+      const isOfficial = brand.domains.some(
+        (domain) =>
+          isSameOrSubdomain(host, domain) &&
+          (!sharedSuffix || host === domain)
+      );
       if (isOfficial) {
         return false;
       }
 
-      return decodedLabels.some((label) => labelUsesBrand(label, brand.name));
+      return labelsToCheck.some((label) => labelUsesBrand(label, brand.name));
     });
   }
 
@@ -609,7 +682,7 @@
       reasons.push("IP address link");
     }
 
-    if (hasMismatchedVisibleDomain(anchor, host)) {
+    if (hasMismatchedVisibleDomain(anchor, url)) {
       reasons.push("visible domain mismatch");
     }
 
@@ -791,7 +864,7 @@
 
   function scheduleRescan() {
     if (rescanTimer !== null) {
-      clearTimeout(rescanTimer);
+      return;
     }
 
     rescanTimer = setTimeout(() => {

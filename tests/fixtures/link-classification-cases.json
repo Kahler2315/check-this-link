@@ -129,6 +129,38 @@
     ]
   },
   {
+    "name": "Unrelated target with secure-login cue claiming PayPal",
+    "href": "https://destination.test/login",
+    "text": "Secure login: paypal.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Unrelated target with secure-login-to cue claiming PayPal",
+    "href": "https://destination.test/login",
+    "text": "Secure login to paypal.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Unrelated target with secure-sign-in-at cue claiming PayPal",
+    "href": "https://destination.test/login",
+    "text": "Secure sign in at paypal.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
+    "name": "Unrelated target with account-access cue claiming PayPal",
+    "href": "https://destination.test/login",
+    "text": "Access your account at paypal.com",
+    "expected": [
+      "visible domain mismatch"
+    ]
+  },
+  {
     "name": "Unrelated target with full Reddit URL",
     "href": "https://destination.test/login",
     "text": "https://reddit.com/r/help",
