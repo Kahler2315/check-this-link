@@ -218,6 +218,23 @@
     return table.includes("\n" + rule + "\n");
   }
 
+  // The suffix tables hold ACE labels, and URL.hostname is already ACE, but a
+  // domain read out of visible link text can be Unicode. Both forms have to
+  // canonicalize the same way or an internationalized suffix silently fails to
+  // match and two separate sites collapse into one identity.
+  function toAsciiHost(hostname) {
+    if (!/[^\x00-\x7F]/.test(hostname)) {
+      return hostname;
+    }
+
+    try {
+      const encoded = new URL("https://" + hostname).hostname;
+      return encoded || hostname;
+    } catch (_error) {
+      return hostname;
+    }
+  }
+
   // Public Suffix List algorithm, returning how many trailing labels form the
   // public suffix. An exception rule wins outright and shortens the suffix by
   // one label; otherwise the longest matching rule wins. A host that matches no
@@ -260,17 +277,26 @@
   function getSharedHostingSuffix(hostname) {
     const host = normalizeHost(hostname);
     const labels = host.split(".").filter(Boolean);
+    const asciiLabels = toAsciiHost(host).split(".").filter(Boolean);
+
+    // ACE encoding maps one label to one label, so the ASCII form can decide
+    // the match while the suffix is sliced from the caller's own form. The
+    // brand-impersonation check measures this string against the host it
+    // passed in, and it needs the original characters to spot confusables.
+    if (asciiLabels.length !== labels.length) {
+      return undefined;
+    }
 
     for (let index = 0; index < labels.length; index += 1) {
-      const candidate = labels.slice(index).join(".");
-      const wildcard = ["*", ...labels.slice(index + 1)].join(".");
+      const candidate = asciiLabels.slice(index).join(".");
+      const wildcard = ["*", ...asciiLabels.slice(index + 1)].join(".");
 
       if (
         matchesSuffixRule(PRIVATE_SUFFIX_RULES, candidate) ||
         matchesSuffixRule(PRIVATE_SUFFIX_RULES, wildcard) ||
         ADDITIONAL_PRIVATE_SUFFIXES.has(candidate)
       ) {
-        return candidate;
+        return labels.slice(index).join(".");
       }
     }
 
@@ -291,7 +317,10 @@
   }
 
   function getSimpleBaseDomain(hostname) {
-    const host = normalizeHost(hostname);
+    // Canonicalized to ACE so a visible domain written in Unicode and a
+    // destination reported by URL.hostname resolve to the same identity, and so
+    // the suffix tables can be matched at all.
+    const host = toAsciiHost(normalizeHost(hostname));
     if (isIpAddress(host)) {
       return host;
     }
