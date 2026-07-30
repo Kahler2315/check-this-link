@@ -538,6 +538,50 @@ setImmediate(() => {
             with self.subTest(destination=destination):
                 self.assertEqual(self.scan_link(destination, visible), [])
 
+    def test_internationalized_public_suffixes_separate_tenants(self):
+        """The list publishes IDN suffixes in Unicode but URL.hostname reports
+        ACE, so an unencoded rule can never match and two different registrable
+        domains collapse into one identity."""
+        ace_pairs = (
+            # andoy.no and aeroport.ci are public suffixes, so these are two
+            # separately controlled registrable domains, not one site.
+            ("attacker.xn--andy-ira.no", "victim.xn--andy-ira.no"),
+            ("attacker.xn--aroport-bya.ci", "victim.xn--aroport-bya.ci"),
+        )
+
+        for destination, visible in ace_pairs:
+            with self.subTest(destination=destination):
+                self.assertEqual(
+                    self.scan_link(f"https://{destination}/login", visible),
+                    ["visible domain mismatch"],
+                )
+
+    def test_unicode_and_ace_forms_resolve_to_one_identity(self):
+        """The same site written two ways must not look like a mismatch."""
+        equivalent = (
+            ("https://victim.xn--andy-ira.no/account", "victim.andøy.no"),
+            ("https://shop.xn--55qx5d.cn/account", "shop.公司.cn"),
+        )
+
+        for destination, visible in equivalent:
+            with self.subTest(destination=destination):
+                self.assertEqual(self.scan_link(destination, visible), [])
+
+    def test_suffix_tables_contain_no_unmatchable_unicode_rules(self):
+        source = (EXTENSION / "psl-data.js").read_text(encoding="utf-8")
+        rules = [
+            line
+            for line in source.split("\\n")
+            if line and not line.startswith("//")
+        ]
+        unicode_rules = [rule for rule in rules if not rule.isascii()]
+
+        self.assertEqual(
+            unicode_rules[:5],
+            [],
+            "Unicode suffix rules can never match an ACE hostname",
+        )
+
     def test_brand_matching_does_not_use_unbounded_substrings(self):
         legitimate_hosts = (
             "appleton.test",

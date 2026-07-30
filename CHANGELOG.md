@@ -10,6 +10,12 @@
 - Evaluate the list with its own algorithm, including wildcard rules, exception
   rules, and private suffixes. Multi-label registry boundaries such as
   `act.edu.au`, `police.uk`, and `k12.ak.us` are now handled correctly.
+- Store internationalized suffixes in ACE (`xn--`) form and canonicalize
+  hostnames before matching. The list publishes those suffixes in Unicode while
+  `URL.hostname` always reports ACE, so 299 rules could never match and two
+  separately controlled domains under an internationalized suffix collapsed
+  into one identity. A domain read from visible link text now canonicalizes the
+  same way, so the same site written in either form is still one site.
 - Supplement the list with seven multi-tenant platforms it does not carry,
   including `wordpress.com`, `glitch.me`, and `app.link`.
 - Keep S3 bucket-qualified hosts resolving to the whole host, since bucket
@@ -19,12 +25,14 @@
   configuration, so a moved upstream tag cannot change what runs in the job
   that handles Firefox signing credentials.
 - Add regression coverage for tenant separation across fourteen providers,
-  same-tenant links, multi-label registry suffixes, and ordinary same-site
-  subdomains.
+  same-tenant links, multi-label registry suffixes, ordinary same-site
+  subdomains, internationalized suffix tenants, and equivalence between the
+  Unicode and ACE spellings of one host.
 
 The list snapshot lives in `extension/psl-data.js` and is regenerated with
-`node tools/generate-psl.mjs`. Analysis remains entirely local and no lookup
-leaves the browser.
+`node tools/generate-psl.mjs`, which records a SHA-256 of the source list in
+the generated header so a snapshot can be tied back to an exact input. Analysis
+remains entirely local and no lookup leaves the browser.
 
 ## 0.1.5 - 2026-07-30
 
