@@ -2,6 +2,7 @@
   "use strict";
 
   const extensionApi = typeof browser !== "undefined" ? browser : chrome;
+  const settingsHelpers = globalThis.CheckThisLinkSettings;
   const BADGE_TAG = "check-this-link-badge";
   const BADGE_ATTRIBUTE = "data-check-this-link-badge";
   const BADGE_HOST_STYLES = {
@@ -198,10 +199,14 @@
   ];
 
   let lastScan = {
+    enabled: true,
     totalLinks: 0,
     suspiciousLinks: 0,
     reasons: {}
   };
+  let userSettings = settingsHelpers.sanitizeSettings(
+    settingsHelpers.DEFAULT_SETTINGS
+  );
 
   function normalizeHost(hostname) {
     return hostname
@@ -726,6 +731,11 @@
       return [];
     }
 
+    const normalizedLink = settingsHelpers.normalizeLink(anchorUrl.href);
+    if (userSettings.falsePositiveLinks.includes(normalizedLink)) {
+      return [];
+    }
+
     const url = getEffectiveUrl(anchorUrl);
     const host = normalizeHost(url.hostname);
     const reasons = [];
@@ -748,6 +758,10 @@
 
     if (hasBrandImpersonation(host)) {
       reasons.push("possible brand impersonation");
+    }
+
+    if (userSettings.falseNegativeLinks.includes(normalizedLink)) {
+      reasons.unshift("manually flagged link");
     }
 
     return reasons;
@@ -860,6 +874,7 @@
 
     const anchors = getScannableAnchors();
     const summary = {
+      enabled: userSettings.enabled,
       totalLinks: anchors.length,
       suspiciousLinks: 0,
       reasons: {}
@@ -867,6 +882,10 @@
 
     anchors.forEach((anchor) => {
       clearCheckThisLinkMarks(anchor);
+
+      if (!userSettings.enabled) {
+        return;
+      }
 
       const reasons = getSuspiciousReasons(anchor);
       if (reasons.length === 0) {
@@ -933,13 +952,50 @@
     }, 100);
   }
 
+  let settingsReady = Promise.resolve();
+
   extensionApi.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message && message.type === "LINKGUARD_GET_SUMMARY") {
-      sendResponse(scanLinks());
+    if (!message) {
+      return undefined;
     }
+
+    if (message.type === "LINKGUARD_APPLY_SETTINGS") {
+      userSettings = settingsHelpers.sanitizeSettings(message.settings);
+      sendResponse(scanLinks());
+      return undefined;
+    }
+
+    if (message.type === "LINKGUARD_GET_SUMMARY") {
+      settingsReady.then(() => sendResponse(scanLinks()));
+      return true;
+    }
+
+    return undefined;
   });
 
-  scanLinks();
+  if (extensionApi.storage && extensionApi.storage.local) {
+    settingsReady = settingsHelpers
+      .getSettings(extensionApi)
+      .then((settings) => {
+        userSettings = settings;
+        scanLinks();
+      })
+      .catch(() => {
+        scanLinks();
+      });
+
+    if (extensionApi.storage.onChanged) {
+      extensionApi.storage.onChanged.addListener((changes, areaName) => {
+        const change = changes[settingsHelpers.STORAGE_KEY];
+        if (areaName === "local" && change) {
+          userSettings = settingsHelpers.sanitizeSettings(change.newValue);
+          scanLinks();
+        }
+      });
+    }
+  } else {
+    scanLinks();
+  }
 
   if (typeof MutationObserver !== "undefined") {
     linkObserver = new MutationObserver((mutations) => {

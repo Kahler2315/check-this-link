@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0 - 2026-08-03
+
+- Add a master on/off switch to the toolbar popup. Turning scanning off removes
+  existing page markers and keeps scanning paused across browser sessions.
+- Add exact-URL false-positive exceptions that suppress warnings for links the
+  user trusts, plus false-negative rules that always mark a link for review.
+- Let users add and remove both kinds of custom links directly in the popup.
+  URL fragments are ignored, duplicate entries are collapsed, and moving a URL
+  into one list removes it from the other.
+- Store the switch and custom link lists locally with Firefox extension
+  storage. The extension still performs no network requests and collects no
+  browsing data.
+- Add regression coverage for the new permission and packaged scripts, popup
+  messaging in the Firefox and Chromium API styles, exception matching,
+  manually flagged links, and disabled scanning.
+
 ## 0.1.6 - 2026-07-30
 
 - Determine site boundaries from a bundled Public Suffix List snapshot instead
