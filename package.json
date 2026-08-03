@@ -1,8 +1,8 @@
 {
-  "name": "check-this-link",
-  "version": "0.2.0",
+  "name": "link-hound",
+  "version": "0.3.0",
   "private": true,
-  "description": "A local-first Firefox extension that flags suspicious link patterns.",
+  "description": "A local-first Firefox extension that flags suspicious link patterns for review.",
   "scripts": {
     "build": "web-ext build --source-dir extension --artifacts-dir artifacts --overwrite-dest",
     "lint": "web-ext lint --source-dir extension",

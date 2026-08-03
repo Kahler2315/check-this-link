@@ -1,6 +1,6 @@
 # Firefox Add-ons release process
 
-Check This Link is listed at:
+Link Hound is listed at:
 
 <https://addons.mozilla.org/firefox/addon/check-this-link/>
 
@@ -43,4 +43,3 @@ npm start
 
 Unsigned ZIP files in `artifacts/` are development artifacts and cannot replace
 Mozilla's signed public package.
-

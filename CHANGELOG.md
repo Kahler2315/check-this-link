@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-08-03
+
+- Rename the extension from Check This Link to **Link Hound**. The permanent
+  Firefox add-on ID and listing URL are unchanged, so existing installations
+  receive the update normally.
+- Replace the toolbar and popup icon set with the new Link Hound black-Labrador
+  and magnifying-link mark, optimized for every Firefox icon size.
+- Update the popup, page warning label, tooltip text, documentation, package
+  metadata, and Firefox release notes to use the Link Hound name.
+
 ## 0.2.0 - 2026-08-03
 
 - Add a master on/off switch to the toolbar popup. Turning scanning off removes

@@ -803,7 +803,7 @@
     const label = document.createElement("span");
 
     style.textContent = BADGE_SHADOW_STYLES;
-    label.textContent = "Check This Link";
+    label.textContent = "Link Hound";
     shadowRoot.append(style, label);
 
     return badgeHost;
@@ -814,8 +814,8 @@
     anchor.classList.add("linkguard-suspicious-link");
     anchor.setAttribute("data-linkguard-reasons", reasons.join(", "));
     anchor.title = anchor.title
-      ? anchor.title + " | Check This Link: " + reasons.join(", ")
-      : "Check This Link: " + reasons.join(", ");
+      ? anchor.title + " | Link Hound: " + reasons.join(", ")
+      : "Link Hound: " + reasons.join(", ");
 
     if (!anchor.querySelector(`:scope > ${BADGE_TAG}[${BADGE_ATTRIBUTE}]`)) {
       anchor.appendChild(createBadge());
