@@ -61,6 +61,19 @@ class RecoveredExtensionTests(unittest.TestCase):
             "142.0",
         )
 
+    def test_custom_link_controls_are_packaged(self):
+        self.assertIn("storage", self.manifest["permissions"])
+        content_scripts = self.manifest["content_scripts"][0]["js"]
+        self.assertLess(
+            content_scripts.index("settings.js"),
+            content_scripts.index("content.js"),
+        )
+
+        popup = (EXTENSION / "popup.html").read_text(encoding="utf-8")
+        self.assertIn('id="enabled-toggle"', popup)
+        self.assertIn('id="false-positive-form"', popup)
+        self.assertIn('id="false-negative-form"', popup)
+
     def test_runtime_has_no_remote_request_primitives(self):
         # Globs rather than naming files, so a newly packaged script such as
         # psl-data.js cannot skip this check by being forgotten here.
@@ -97,6 +110,7 @@ class RecoveredExtensionTests(unittest.TestCase):
         href,
         text,
         *,
+        settings=None,
         inner_text=None,
         aria_label=None,
         title=None,
@@ -110,7 +124,9 @@ const contentPath = process.argv[1];
 const href = process.argv[2];
 const textContent = process.argv[3];
 const presentation = JSON.parse(process.argv[4]);
+const suppliedSettings = JSON.parse(process.argv[5]);
 const attributes = new Map();
+let messageListener;
 
 if (presentation.ariaLabel !== null) {
   attributes.set("aria-label", presentation.ariaLabel);
@@ -186,19 +202,32 @@ const document = {
 const browser = {
   runtime: {
     onMessage: {
-      addListener() {}
+      addListener(listener) {
+        messageListener = listener;
+      }
     }
   }
 };
 
-// The manifest loads psl-data.js ahead of content.js in the same content-script
-// scope, so the harness has to provide the suffix tables the same way.
+// The manifest loads these shared scripts ahead of content.js, so the harness
+// has to provide them in the same order.
 const pslPath = require("path").join(require("path").dirname(contentPath), "psl-data.js");
+const settingsPath = require("path").join(require("path").dirname(contentPath), "settings.js");
 
 vm.runInNewContext(
-  fs.readFileSync(pslPath, "utf8") + "\n" + fs.readFileSync(contentPath, "utf8"),
+  fs.readFileSync(pslPath, "utf8") + "\n" +
+    fs.readFileSync(settingsPath, "utf8") + "\n" +
+    fs.readFileSync(contentPath, "utf8"),
   { browser, document, URL }
 );
+
+if (suppliedSettings !== null) {
+  messageListener(
+    { type: "LINKGUARD_APPLY_SETTINGS", settings: suppliedSettings },
+    {},
+    () => {}
+  );
+}
 
 process.stdout.write(JSON.stringify({
   reasons: (attributes.get("data-linkguard-reasons") || "")
@@ -222,6 +251,7 @@ process.stdout.write(JSON.stringify({
                         "imageAlts": list(image_alts),
                     }
                 ),
+                json.dumps(settings),
             ],
             check=True,
             capture_output=True,
@@ -239,6 +269,9 @@ class FakeElement {
     this.textContent = "";
     this.children = [];
     this._innerHTML = "";
+    this.checked = true;
+    this.value = "";
+    this.className = "";
   }
   get innerHTML() {
     return this._innerHTML;
@@ -252,15 +285,50 @@ class FakeElement {
   appendChild(child) {
     this.children.push(child);
   }
+  append(...children) {
+    this.children.push(...children);
+  }
+  addEventListener() {}
+  setAttribute() {}
 }
 
 const elements = new Map([
   ["total-links", new FakeElement()],
   ["suspicious-links", new FakeElement()],
-  ["reason-list", new FakeElement()]
+  ["reason-list", new FakeElement()],
+  ["scan-status", new FakeElement()],
+  ["enabled-toggle", new FakeElement()],
+  ["settings-message", new FakeElement()],
+  ["false-positive-form", new FakeElement()],
+  ["false-positive-input", new FakeElement()],
+  ["false-positive-list", new FakeElement()],
+  ["false-negative-form", new FakeElement()],
+  ["false-negative-input", new FakeElement()],
+  ["false-negative-list", new FakeElement()]
 ]);
-const summary = { totalLinks: 7, suspiciousLinks: 2, reasons: { test: 2 } };
+const summary = { enabled: true, totalLinks: 7, suspiciousLinks: 2, reasons: { test: 2 } };
 let observed;
+const stored = {};
+const storage = {
+  local: {
+    get(key, callback) {
+      const value = { [key]: stored[key] };
+      if (callback) {
+        callback(value);
+        return;
+      }
+      return Promise.resolve(value);
+    },
+    set(update, callback) {
+      Object.assign(stored, update);
+      if (callback) {
+        callback();
+        return;
+      }
+      return Promise.resolve();
+    }
+  }
+};
 const tabs = {
   query(queryInfo, callback) {
     if (callback) {
@@ -291,12 +359,16 @@ const context = {
   setTimeout,
   clearTimeout
 };
-if (process.argv[2] === "browser") {
-  context.browser = { runtime: { onMessage: {} }, tabs };
+if (process.argv[3] === "browser") {
+  context.browser = { runtime: { onMessage: {} }, storage, tabs };
 } else {
-  context.chrome = { runtime: { lastError: null }, tabs };
+  context.chrome = { runtime: { lastError: null }, storage, tabs };
 }
-vm.runInNewContext(fs.readFileSync(process.argv[1], "utf8"), context);
+vm.runInNewContext(
+  fs.readFileSync(process.argv[1], "utf8") + "\n" +
+    fs.readFileSync(process.argv[2], "utf8"),
+  context
+);
 setImmediate(() => {
   process.stdout.write(JSON.stringify({
     observed,
@@ -312,6 +384,7 @@ setImmediate(() => {
                 "node",
                 "-e",
                 script,
+                str(EXTENSION / "settings.js"),
                 str(EXTENSION / "popup.js"),
                 api_name,
             ],
@@ -329,6 +402,36 @@ setImmediate(() => {
 
         self.assertNotIn("possible brand impersonation", reasons)
         self.assertEqual(reasons, [])
+
+    def test_false_positive_false_negative_and_disable_settings(self):
+        false_positive = "https://bit.ly/example"
+        self.assertEqual(
+            self.scan_link(
+                false_positive + "#section",
+                "Short link",
+                settings={"falsePositiveLinks": [false_positive]},
+            ),
+            [],
+        )
+
+        false_negative = "https://ordinary.test/account"
+        self.assertEqual(
+            self.scan_link(
+                false_negative,
+                "Account",
+                settings={"falseNegativeLinks": [false_negative]},
+            ),
+            ["manually flagged link"],
+        )
+
+        self.assertEqual(
+            self.scan_link(
+                "https://bit.ly/example",
+                "Short link",
+                settings={"enabled": False},
+            ),
+            [],
+        )
 
     def test_google_lookalike_domain_is_still_brand_impersonation(self):
         reasons = self.scan_link(

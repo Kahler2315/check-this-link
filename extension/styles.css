@@ -5,7 +5,8 @@
 }
 
 .linkguard-popup {
-  min-width: 280px;
+  min-width: 340px;
+  max-width: 380px;
   margin: 0;
   color: #172026;
   background: #f7f9fb;
@@ -23,6 +24,73 @@
 .linkguard-popup h1 {
   margin: 0;
   font-size: 20px;
+}
+
+.linkguard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.linkguard-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.linkguard-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.linkguard-switch > span[aria-hidden] {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #7a8791;
+  transition: background 120ms ease;
+}
+
+.linkguard-switch > span[aria-hidden]::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  content: "";
+  transition: transform 120ms ease;
+}
+
+.linkguard-switch input:checked + span {
+  background: #157347;
+}
+
+.linkguard-switch input:checked + span::after {
+  transform: translateX(18px);
+}
+
+.linkguard-switch input:focus-visible + span {
+  outline: 2px solid #0b57d0;
+  outline-offset: 2px;
+}
+
+.linkguard-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .linkguard-popup h2 {
@@ -68,4 +136,103 @@
 
 .linkguard-popup li {
   margin: 4px 0;
+}
+
+.linkguard-rules {
+  margin-top: 16px;
+  padding-top: 1px;
+  border-top: 1px solid #d8e0e7;
+}
+
+.linkguard-rules > p {
+  font-size: 12px;
+}
+
+.linkguard-rule-group {
+  margin-top: 14px;
+}
+
+.linkguard-rule-group > label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.linkguard-rule-group > label span {
+  color: #5b6872;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.linkguard-link-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.linkguard-link-form input,
+.linkguard-link-form button,
+.linkguard-remove-button {
+  box-sizing: border-box;
+  min-height: 32px;
+  border: 1px solid #aeb9c2;
+  border-radius: 5px;
+  font: inherit;
+}
+
+.linkguard-link-form input {
+  min-width: 0;
+  padding: 5px 8px;
+  background: #ffffff;
+}
+
+.linkguard-link-form button {
+  padding: 5px 11px;
+  color: #ffffff;
+  border-color: #0b57d0;
+  background: #0b57d0;
+  cursor: pointer;
+}
+
+.linkguard-managed-list {
+  margin-top: 6px !important;
+  padding: 0 !important;
+  list-style: none;
+}
+
+.linkguard-managed-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 0;
+  border-bottom: 1px solid #e4e9ed;
+}
+
+.linkguard-managed-list li > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkguard-managed-list .linkguard-empty-rule {
+  display: block;
+  color: #6a7680;
+  border-bottom: 0;
+}
+
+.linkguard-remove-button {
+  min-height: 26px;
+  padding: 2px 7px;
+  color: #8a1f14;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.linkguard-settings-message {
+  min-height: 17px;
+  color: #8a1f14 !important;
 }

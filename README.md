@@ -5,7 +5,7 @@
 Check This Link is a privacy-first Firefox extension that scans links on the
 current webpage and visually flags patterns that deserve a closer look.
 
-Version 0.1.6 checks locally for:
+Version 0.2.0 checks locally for:
 
 - Known URL-shortener domains
 - Direct IP-address links
@@ -14,6 +14,16 @@ Version 0.1.6 checks locally for:
 
 These are warning signals, not proof that a link is malicious. The extension
 does not send browsing data to a server or make remote requests.
+
+Click the toolbar icon to turn scanning on or off and manage two local custom
+link lists:
+
+- **Don't flag** suppresses a known false positive.
+- **Always flag** marks a known false negative for review.
+
+Custom rules match an exact HTTP or HTTPS URL after its page fragment is
+removed. They and the master switch are stored only in Firefox extension
+storage.
 
 ## Source recovery
 
@@ -94,6 +104,7 @@ process.
 extension/
   content.js       Local link analysis and page annotations
   psl-data.js      Generated Public Suffix List tables
+  settings.js      Local setting validation and persistence helpers
   popup.html       Toolbar popup
   popup.js         Active-tab summary request
   styles.css       Page markers and popup styling

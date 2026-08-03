@@ -8,9 +8,16 @@
   </head>
   <body class="linkguard-popup">
     <main>
-      <header>
-        <h1>Check This Link</h1>
-        <p>Local link scan</p>
+      <header class="linkguard-header">
+        <div>
+          <h1>Check This Link</h1>
+          <p id="scan-status">Local link scan</p>
+        </div>
+        <label class="linkguard-switch" title="Turn link scanning on or off">
+          <input id="enabled-toggle" type="checkbox" role="switch" checked>
+          <span aria-hidden="true"></span>
+          <span class="linkguard-visually-hidden">Enable link scanning</span>
+        </label>
       </header>
 
       <section class="linkguard-summary" aria-live="polite">
@@ -30,8 +37,34 @@
           <li>Scanning this page...</li>
         </ul>
       </section>
+
+      <section class="linkguard-rules">
+        <h2>Custom links</h2>
+        <p>Use an exact URL. Page fragments are ignored.</p>
+
+        <div class="linkguard-rule-group">
+          <label for="false-positive-input">Don't flag <span>(false positive)</span></label>
+          <form id="false-positive-form" class="linkguard-link-form">
+            <input id="false-positive-input" type="url" inputmode="url" placeholder="https://example.com/link" required>
+            <button type="submit">Add</button>
+          </form>
+          <ul id="false-positive-list" class="linkguard-managed-list"></ul>
+        </div>
+
+        <div class="linkguard-rule-group">
+          <label for="false-negative-input">Always flag <span>(false negative)</span></label>
+          <form id="false-negative-form" class="linkguard-link-form">
+            <input id="false-negative-input" type="url" inputmode="url" placeholder="https://example.com/link" required>
+            <button type="submit">Add</button>
+          </form>
+          <ul id="false-negative-list" class="linkguard-managed-list"></ul>
+        </div>
+
+        <p id="settings-message" class="linkguard-settings-message" role="status" aria-live="polite"></p>
+      </section>
     </main>
 
+    <script src="settings.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
