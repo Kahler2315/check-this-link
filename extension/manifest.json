@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Check This Link",
-  "version": "0.2.0",
-  "description": "Locally flags suspicious links on webpages.",
+  "name": "Link Hound",
+  "version": "0.3.0",
+  "description": "Locally flags suspicious links on webpages for review.",
   "homepage_url": "https://github.com/Kahler2315/check-this-link",
   "permissions": [
     "storage"
@@ -19,7 +19,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Check This Link",
+    "default_title": "Link Hound",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

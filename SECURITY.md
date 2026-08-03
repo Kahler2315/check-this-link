@@ -14,7 +14,7 @@ users should update before reporting behavior that may already be fixed.
 
 ## Security Model
 
-Check This Link is a local, advisory Firefox extension. It reads link-related
+Link Hound is a local, advisory Firefox extension. It reads link-related
 DOM data in visited pages and annotates suspicious links. It does not block
 navigation, make remote reputation requests, or promise to detect every
 deceptive page.

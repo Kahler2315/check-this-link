@@ -1,11 +1,12 @@
-# Check This Link
+# Link Hound
 
 [![Validate extension](https://github.com/Kahler2315/check-this-link/actions/workflows/validate.yml/badge.svg)](https://github.com/Kahler2315/check-this-link/actions/workflows/validate.yml)
 
-Check This Link is a privacy-first Firefox extension that scans links on the
-current webpage and visually flags patterns that deserve a closer look.
+Link Hound (formerly Check This Link) is a privacy-first Firefox extension
+that scans links on the current webpage and visually flags patterns that
+deserve a closer look.
 
-Version 0.2.0 checks locally for:
+Version 0.3.0 checks locally for:
 
 - Known URL-shortener domains
 - Direct IP-address links
@@ -46,7 +47,7 @@ Firefox can load the recovered source directly:
 3. Click **Load Temporary Add-on**.
 4. Select `extension/manifest.json`.
 5. Open a normal webpage containing links.
-6. Click the Check This Link toolbar icon to see the scan summary.
+6. Click the Link Hound toolbar icon to see the scan summary.
 
 Firefox internal pages such as `about:addons` cannot be scanned by ordinary
 content scripts.
@@ -108,7 +109,7 @@ extension/
   popup.html       Toolbar popup
   popup.js         Active-tab summary request
   styles.css       Page markers and popup styling
-  icons/           Published extension icons
+  icons/           Link Hound logo source and published extension icons
 tests/
   test_extension.py
 tools/

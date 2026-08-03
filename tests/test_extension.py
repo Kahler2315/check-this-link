@@ -16,7 +16,7 @@ class RecoveredExtensionTests(unittest.TestCase):
         )
 
     def test_manifest_identity_is_preserved(self):
-        self.assertEqual(self.manifest["name"], "Check This Link")
+        self.assertEqual(self.manifest["name"], "Link Hound")
         self.assertEqual(
             self.manifest["browser_specific_settings"]["gecko"]["id"],
             "check-this-link@example.com",
