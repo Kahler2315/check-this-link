@@ -10,7 +10,7 @@
     "test": "python3 -m unittest discover -s tests -v"
   },
   "devDependencies": {
-    "web-ext": "10.5.0"
+    "web-ext": "10.7.0"
   },
   "engines": {
     "node": ">=22"
